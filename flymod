@@ -7,34 +7,35 @@ local Camera = workspace.CurrentCamera
 local flying = false
 local flySpeed = 50
 local bv, bg
-local noclipLoop -- Noclip döngüsü için değişken
+local noclipConnection
+local godModeConnection
 
--- --- ARAYÜZ (GHOST UI) ---
+-- --- HAYALET ARAYÜZ (GHOST UI) ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyV8_Noclip"
-ScreenGui.ResetOnSpawn = false -- Ölünce gitmez
+ScreenGui.Name = "GhostFlyV9_God"
+ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 150, 0, 190)
+MainFrame.Size = UDim2.new(0, 150, 0, 200) -- Biraz uzattık
 MainFrame.Position = UDim2.new(0.5, -75, 0.1, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BorderSizePixel = 0
-MainFrame.Draggable = true
 MainFrame.Active = true
+MainFrame.Draggable = true
 
--- Mor Parlama (Hayalet Efekti)
+-- Mavi/Mor Karışımı Parlama (Ultra Ghost)
 local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(170, 0, 255) 
+UIStroke.Color = Color3.fromRGB(85, 0, 255) 
 UIStroke.Thickness = 3
 Instance.new("UICorner", MainFrame)
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "GHOST FLY V8"
+Title.Text = "GHOST V9: GOD MODE"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 13
 
 local SpeedLabel = Instance.new("TextLabel", MainFrame)
 SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
@@ -45,31 +46,41 @@ SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 18
 
--- --- NOCLIP FONKSİYONU ---
-local function EnableNoclip(char, state)
-    if noclipLoop then noclipLoop:Disconnect() end
-    
+-- --- ÖLÜMSÜZLÜK VE NOCLIP SİSTEMİ ---
+local function EnableGhostMode(char, state)
+    -- Önceki döngüleri temizle
+    if noclipConnection then noclipConnection:Disconnect() end
+    if godModeConnection then godModeConnection:Disconnect() end
+
     if state then
-        -- Her karede çarpışmayı kapat (RunService.Stepped en iyisidir)
-        noclipLoop = RunService.Stepped:Connect(function()
-            if not flying then 
-                if noclipLoop then noclipLoop:Disconnect() end
-                return 
-            end
+        local hum = char:FindFirstChild("Humanoid")
+        
+        -- GOD MODE: Ölmeyi reddet
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) -- Servera "Ben ölmem" de
+        end
+
+        -- SÜREKLİ DÖNGÜ (Noclip + Can Yenileme)
+        noclipConnection = RunService.Stepped:Connect(function()
+            if not flying then return end
             
-            -- Karakterin parçalarını hayalet yap
+            -- 1. Canı Sürekli Fulle (Lava düşsen bile ölmezsin)
+            if hum and hum.Health < hum.MaxHealth then
+                hum.Health = hum.MaxHealth
+            end
+
+            -- 2. Karakter Noclip (Her parçanın çarpışmasını kapat)
             for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide == true then
+                if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
 
-            -- Eğer arabada oturuyorsan, arabayı da hayalet yap
-            local hum = char:FindFirstChild("Humanoid")
+            -- 3. Araç Noclip (Eğer arabada oturuyorsan araba da geçer)
             if hum and hum.SeatPart then
-                local vehicle = hum.SeatPart.Parent -- Araba modeli
+                local vehicle = hum.SeatPart.Parent
                 for _, vPart in pairs(vehicle:GetDescendants()) do
-                    if vPart:IsA("BasePart") and vPart.CanCollide == true then
+                    if vPart:IsA("BasePart") then
                         vPart.CanCollide = false
                     end
                 end
@@ -78,7 +89,7 @@ local function EnableNoclip(char, state)
     end
 end
 
--- --- UÇMA MOTORU ---
+-- --- UÇUŞ MOTORU ---
 local function startFly()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hum = char:WaitForChild("Humanoid")
@@ -101,10 +112,10 @@ local function startFly()
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 50000
 
-    -- Noclip'i başlat
-    EnableNoclip(char, true)
+    -- Ghost Modu (Noclip + God Mode) Aktif Et
+    EnableGhostMode(char, true)
 
-    -- Superman Duruşu (Sadece ayaktaysan)
+    -- Superman Animasyonu (Sadece ayaktaysan)
     if not isSitting then
         hum.PlatformStand = true
         if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
@@ -121,35 +132,31 @@ local function startFly()
                 direction = -Camera.CFrame.LookVector * flySpeed
             end
             
-            -- BYPASS: Hız Titreşimi
+            -- BYPASS TİTREŞİMİ
             bv.Velocity = direction + Vector3.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
             
-            -- Yönlendirme
             if isSitting then
-                bg.CFrame = Camera.CFrame -- Araç düz dursun
+                bg.CFrame = Camera.CFrame -- Araç düz
             else
-                -- Superman yatay duruş
-                bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
+                bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0) -- Superman yatay
             end
 
-            -- Space ile çıkış
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                 flying = false
                 if hum.Sit then hum.Sit = false end
             end
         end
         
-        -- Kapatma İşlemleri
-        EnableNoclip(char, false) -- Noclip kapat
+        -- KAPATMA İŞLEMLERİ
+        EnableGhostMode(char, false) -- God mode ve Noclip kapat
         hum.PlatformStand = false
         if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
         if bv then bv:Destroy() end
         if bg then bg:Destroy() end
         
-        -- Butonu eski haline getir
         local btn = MainFrame:FindFirstChild("ToggleBtn")
         if btn then
-            btn.Text = "FLY: OFF"
+            btn.Text = "HAYALET: OFF"
             btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
         end
     end)
@@ -170,7 +177,7 @@ local function createBtn(txt, pos, callback)
 end
 
 createBtn("+", UDim2.new(0.6, 0, 0.4, 0), function()
-    flySpeed = math.min(flySpeed + 10, 800) -- Hız limitini artırdım
+    flySpeed = math.min(flySpeed + 10, 1000)
     SpeedLabel.Text = "HIZ: " .. flySpeed
 end)
 
@@ -183,7 +190,7 @@ local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Name = "ToggleBtn"
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-ToggleBtn.Text = "FLY: OFF"
+ToggleBtn.Text = "HAYALET: OFF"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -192,11 +199,11 @@ Instance.new("UICorner", ToggleBtn)
 ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        ToggleBtn.Text = "FLY: GHOST"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 255) -- Mor (Ghost Mode)
+        ToggleBtn.Text = "HAYALET: ON"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
         startFly()
     else
-        ToggleBtn.Text = "FLY: OFF"
+        ToggleBtn.Text = "HAYALET: OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end
 end)
