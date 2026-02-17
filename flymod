@@ -1,0 +1,85 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "GHOST FLY BYPASS",
+   LoadingTitle = "Bypass Motoru Hazırlanıyor...",
+   LoadingSubtitle = "by serazs"
+})
+
+local LP = game.Players.LocalPlayer
+local Mouse = LP:GetMouse()
+local flying = false
+local flySpeed = 50
+
+-- ANA UÇMA FONKSİYONU (BYPASSLI)
+local function startFly()
+    local char = LP.Character or LP.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    
+    -- Eski uçma güçlerini temizle
+    for _, v in pairs(hrp:GetChildren()) do
+        if v:IsA("BodyVelocity") or v:IsA("BodyGyro") then v:Destroy() end
+    end
+
+    local bv = Instance.new("BodyVelocity", hrp)
+    local bg = Instance.new("BodyGyro", hrp)
+
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.Velocity = Vector3.new(0, 0.1, 0) -- Düşmeyi engeller
+    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bg.P = 9e4
+
+    spawn(function()
+        while flying do
+            RunService.RenderStepped:Wait()
+            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Mouse.Hit.LookVector)
+            
+            local direction = Vector3.new(0, 0.1, 0)
+            -- Tuş kontrolleri (W, A, S, D)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                direction = direction + Mouse.Hit.LookVector * flySpeed
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                direction = direction - Mouse.Hit.LookVector * flySpeed
+            end
+            
+            -- BYPASS NOKTASI: Sunucuyu kandırmak için saniyelik ufak dalgalanmalar
+            bv.Velocity = direction + Vector3.new(math.random(-1,1)/10, 0, math.random(-1,1)/10)
+        end
+        bv:Destroy()
+        bg:Destroy()
+    end)
+end
+
+local Tab = Window:CreateTab("Uçma Modu", 4483345998)
+
+Tab:CreateToggle({
+   Name = "Safe Fly (Bypass Açık)",
+   CurrentValue = false,
+   Callback = function(Value)
+      flying = Value
+      if flying then startFly() end
+   end,
+})
+
+Tab:CreateSlider({
+   Name = "Uçuş Hızı",
+   Min = 16,
+   Max = 200,
+   Default = 50,
+   Callback = function(Value) flySpeed = Value end,
+})
+
+-- Noclip (Duvarlardan Geçme) - Uçarken ban yememenin diğer yolu
+Tab:CreateButton({
+   Name = "Noclip Aç (Duvarlardan Geç)",
+   Callback = function()
+      RunService.Stepped:Connect(function()
+         if flying then
+            for _, v in pairs(LP.Character:GetDescendants()) do
+               if v:IsA("BasePart") then v.CanCollide = false end
+            end
+         end
+      end)
+   end,
+})
