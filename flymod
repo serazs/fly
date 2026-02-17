@@ -1,7 +1,6 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -15,12 +14,12 @@ local connection
 
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "SupermanFlyV7"
+ScreenGui.Name = "SupermanFlyV8"
 ScreenGui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,180,0,200)
-Main.Position = UDim2.new(0.5,-90,0.15,0)
+Main.Size = UDim2.new(0,200,0,240)
+Main.Position = UDim2.new(0.5,-100,0.15,0)
 Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
 Main.Active = true
 Main.Draggable = true
@@ -39,7 +38,7 @@ Title.TextColor3 = Color3.new(1,1,1)
 
 local Toggle = Instance.new("TextButton", Main)
 Toggle.Size = UDim2.new(0.8,0,0,40)
-Toggle.Position = UDim2.new(0.1,0,0.3,0)
+Toggle.Position = UDim2.new(0.1,0,0.25,0)
 Toggle.Text = "FLY: OFF"
 Toggle.Font = Enum.Font.GothamBold
 Toggle.TextSize = 16
@@ -49,7 +48,7 @@ Instance.new("UICorner", Toggle)
 
 local SpeedLabel = Instance.new("TextLabel", Main)
 SpeedLabel.Size = UDim2.new(1,0,0,30)
-SpeedLabel.Position = UDim2.new(0,0,0.6,0)
+SpeedLabel.Position = UDim2.new(0,0,0.5,0)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 15
@@ -58,7 +57,7 @@ SpeedLabel.Text = "SPEED: "..flySpeed
 
 local SpeedUp = Instance.new("TextButton", Main)
 SpeedUp.Size = UDim2.new(0.35,0,0,30)
-SpeedUp.Position = UDim2.new(0.1,0,0.8,0)
+SpeedUp.Position = UDim2.new(0.1,0,0.65,0)
 SpeedUp.Text = "+"
 SpeedUp.Font = Enum.Font.GothamBold
 SpeedUp.TextSize = 18
@@ -68,7 +67,7 @@ Instance.new("UICorner", SpeedUp)
 
 local SpeedDown = Instance.new("TextButton", Main)
 SpeedDown.Size = UDim2.new(0.35,0,0,30)
-SpeedDown.Position = UDim2.new(0.55,0,0.8,0)
+SpeedDown.Position = UDim2.new(0.55,0,0.65,0)
 SpeedDown.Text = "-"
 SpeedDown.Font = Enum.Font.GothamBold
 SpeedDown.TextSize = 18
@@ -76,7 +75,53 @@ SpeedDown.BackgroundColor3 = Color3.fromRGB(40,40,40)
 SpeedDown.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", SpeedDown)
 
---// RGB EFFECT
+-- HELP BUTTON
+local HelpBtn = Instance.new("TextButton", Main)
+HelpBtn.Size = UDim2.new(0.3,0,0,28)
+HelpBtn.Position = UDim2.new(0.35,0,0.82,0)
+HelpBtn.Text = "?"
+HelpBtn.Font = Enum.Font.GothamBold
+HelpBtn.TextSize = 16
+HelpBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+HelpBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", HelpBtn)
+
+local HelpFrame = Instance.new("Frame", ScreenGui)
+HelpFrame.Size = UDim2.new(0,260,0,200)
+HelpFrame.Position = UDim2.new(0.5,-130,0.5,-100)
+HelpFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+HelpFrame.Visible = false
+Instance.new("UICorner", HelpFrame)
+
+local HelpText = Instance.new("TextLabel", HelpFrame)
+HelpText.Size = UDim2.new(1,-10,1,-10)
+HelpText.Position = UDim2.new(0,5,0,5)
+HelpText.BackgroundTransparency = 1
+HelpText.Font = Enum.Font.Gotham
+HelpText.TextSize = 14
+HelpText.TextColor3 = Color3.new(1,1,1)
+HelpText.TextWrapped = true
+HelpText.Text =
+[[NASIL ÇALIŞIR
+
+FLY ON → uçuş başlar
+FLY OFF → kapanır
+
+W → ileri
+S → geri
+A → sol
+D → sağ
+
+Kamera nereye bakarsa oraya uçarsın
+
+Speed + - ile hız değişir
+
+Koltukta otursan bile uçarsın
+(araba dahil)
+
+Paneli sürükleyebilirsin]]
+
+-- RGB EFFECT
 task.spawn(function()
 	local hue = 0
 	while true do
@@ -89,7 +134,12 @@ task.spawn(function()
 	end
 end)
 
---// GET SEAT OR ROOT
+-- HELP TOGGLE
+HelpBtn.MouseButton1Click:Connect(function()
+	HelpFrame.Visible = not HelpFrame.Visible
+end)
+
+-- GET SEAT OR ROOT
 local function getFlyPart(char)
 	local hum = char:FindFirstChildWhichIsA("Humanoid")
 	if hum and hum.SeatPart then
@@ -98,7 +148,7 @@ local function getFlyPart(char)
 	return char:FindFirstChild("HumanoidRootPart")
 end
 
---// START FLY
+-- START FLY
 local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
@@ -122,19 +172,21 @@ local function startFly()
 
 	connection = RunService.RenderStepped:Connect(function()
 		local cam = workspace.CurrentCamera
-		
 		bg.CFrame = cam.CFrame
-		
+
 		local move = hum.MoveDirection
+
 		if move.Magnitude > 0 then
-			bv.Velocity = cam.CFrame.LookVector * (flySpeed * 50)
+			bv.Velocity =
+				(cam.CFrame.LookVector * move.Z * -1 +
+				 cam.CFrame.RightVector * move.X) * (flySpeed * 50)
 		else
 			bv.Velocity = Vector3.zero
 		end
 	end)
 end
 
---// STOP FLY
+-- STOP FLY
 local function stopFly()
 	local char = LocalPlayer.Character
 	if char then
@@ -149,7 +201,7 @@ local function stopFly()
 	if bv then bv:Destroy() end
 end
 
---// TOGGLE
+-- TOGGLE
 local function toggleFly()
 	flying = not flying
 	
@@ -164,7 +216,7 @@ end
 
 Toggle.MouseButton1Click:Connect(toggleFly)
 
---// SPEED
+-- SPEED
 SpeedUp.MouseButton1Click:Connect(function()
 	flySpeed += 1
 	SpeedLabel.Text = "SPEED: "..flySpeed
@@ -177,7 +229,7 @@ SpeedDown.MouseButton1Click:Connect(function()
 	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
 
---// RESPAWN FIX
+-- RESPAWN FIX
 LocalPlayer.CharacterAdded:Connect(function()
 	stopFly()
 end)
