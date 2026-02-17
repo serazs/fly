@@ -6,22 +6,21 @@ local LocalPlayer = Players.LocalPlayer
 
 --// VARIABLES
 local flying = false
-local flySpeed = 10  -- başlangıç hızı (10 daha iyi)
-local maxSpeed = 50
+local flySpeed = 2
 
-local bg, bv
+local bg
+local bv
+local bf  -- BodyForce için eklendi
 local connection
-local upPressed = false
-local downPressed = false
 
---// GUI (SupermanFlyV8 tabanlı, UP/DOWN eklendi)
+--// GUI (AYNEN SENİN VERDİĞİN GİBİ)
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 ScreenGui.Name = "SupermanFlyV8"
 ScreenGui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,240,0,300)  -- biraz büyüttüm UP/DOWN için
-Main.Position = UDim2.new(0.5,-120,0.15,0)
+Main.Size = UDim2.new(0,200,0,240)
+Main.Position = UDim2.new(0.5,-100,0.15,0)
 Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
 Main.Active = true
 Main.Draggable = true
@@ -33,14 +32,14 @@ Stroke.Thickness = 3
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1,0,0,35)
 Title.BackgroundTransparency = 1
-Title.Text = "SUPERMAN FLY V8"
+Title.Text = "SUPERMAN FLY"
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 16
 Title.TextColor3 = Color3.new(1,1,1)
 
 local Toggle = Instance.new("TextButton", Main)
 Toggle.Size = UDim2.new(0.8,0,0,40)
-Toggle.Position = UDim2.new(0.1,0,0.2,0)  -- konum kaydı
+Toggle.Position = UDim2.new(0.1,0,0.25,0)
 Toggle.Text = "FLY: OFF"
 Toggle.Font = Enum.Font.GothamBold
 Toggle.TextSize = 16
@@ -48,31 +47,9 @@ Toggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Toggle.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", Toggle)
 
--- UP BUTTON
-local UpBtn = Instance.new("TextButton", Main)
-UpBtn.Size = UDim2.new(0.35,0,0,30)
-UpBtn.Position = UDim2.new(0.1,0,0.4,0)
-UpBtn.Text = "UP"
-UpBtn.Font = Enum.Font.GothamBold
-UpBtn.TextSize = 16
-UpBtn.BackgroundColor3 = Color3.fromRGB(79, 255, 152)
-UpBtn.TextColor3 = Color3.new(0,0,0)
-Instance.new("UICorner", UpBtn)
-
--- DOWN BUTTON
-local DownBtn = Instance.new("TextButton", Main)
-DownBtn.Size = UDim2.new(0.35,0,0,30)
-DownBtn.Position = UDim2.new(0.55,0,0.4,0)
-DownBtn.Text = "DOWN"
-DownBtn.Font = Enum.Font.GothamBold
-DownBtn.TextSize = 16
-DownBtn.BackgroundColor3 = Color3.fromRGB(215, 255, 121)
-DownBtn.TextColor3 = Color3.new(0,0,0)
-Instance.new("UICorner", DownBtn)
-
 local SpeedLabel = Instance.new("TextLabel", Main)
 SpeedLabel.Size = UDim2.new(1,0,0,30)
-SpeedLabel.Position = UDim2.new(0,0,0.55,0)
+SpeedLabel.Position = UDim2.new(0,0,0.5,0)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 15
@@ -136,8 +113,7 @@ S → geri
 A → sol
 D → sağ
 
-UP/DOWN butonları ile yüksel/alçal
-(butonları basılı tut)
+Kamera nereye bakarsa oraya uçarsın
 
 Speed + - ile hız değişir
 
@@ -164,16 +140,16 @@ HelpBtn.MouseButton1Click:Connect(function()
 	HelpFrame.Visible = not HelpFrame.Visible
 end)
 
--- GET SEAT OR ROOT (R6/R15 uyumlu)
+-- GET SEAT OR ROOT
 local function getFlyPart(char)
-	-- Önce HumanoidRootPart dene
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if root then return root end
-	-- Yoksa Torso veya UpperTorso dene
-	return char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	if hum and hum.SeatPart then
+		return hum.SeatPart
+	end
+	return char:FindFirstChild("HumanoidRootPart")
 end
 
--- START FLY (yeni mekanik)
+-- YENİ START FLY (DENGELİ UÇUŞ)
 local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
@@ -184,48 +160,47 @@ local function startFly()
 	local root = getFlyPart(char)
 	if not root then return end
 
-	-- PlatformStand aktif et
 	if not hum.SeatPart then
 		hum.PlatformStand = true
 	end
 
-	-- BodyGyro: yumuşak dönüş
+	-- BodyGyro: dönüş için, daha düşük P değeri ile yumuşak dönüş
 	bg = Instance.new("BodyGyro", root)
-	bg.P = 5000  -- daha yumuşak
+	bg.P = 3000  -- daha düşük, yumuşak dönüş
 	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+	bg.CFrame = root.CFrame
 
-	-- BodyVelocity: hareket
+	-- BodyVelocity: hareket için
 	bv = Instance.new("BodyVelocity", root)
 	bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+	bv.Velocity = Vector3.zero
+
+	-- BodyForce: yerçekimini iptal et (havada sabit durmak için)
+	bf = Instance.new("BodyForce", root)
+	bf.Force = Vector3.new(0, -workspace.Gravity * root.AssemblyMass, 0)
 
 	connection = RunService.RenderStepped:Connect(function()
 		local cam = workspace.CurrentCamera
 		if not cam then return end
 
-		-- Kameraya dön
+		-- Kameranın baktığı yöne dön (sadece yatay düzlemde değil, tamamen)
 		bg.CFrame = cam.CFrame
 
-		-- WASD hareketi
 		local move = hum.MoveDirection
-		local velocity = Vector3.zero
-
 		if move.Magnitude > 0 then
-			velocity = (cam.CFrame.LookVector * move.Z + cam.CFrame.RightVector * move.X) * flySpeed
+			-- Düzeltilmiş hareket: move.Z ileri/geri, move.X sağ/sol
+			-- NOT: move.Z pozitif ileri, negatif geri
+			bv.Velocity = (
+				cam.CFrame.LookVector * move.Z +
+				cam.CFrame.RightVector * move.X
+			) * (flySpeed * 30)  -- hız çarpanı
+		else
+			bv.Velocity = Vector3.zero
 		end
-
-		-- UP/DOWN butonları
-		if upPressed then
-			velocity = velocity + Vector3.new(0, flySpeed, 0)
-		end
-		if downPressed then
-			velocity = velocity + Vector3.new(0, -flySpeed, 0)
-		end
-
-		bv.Velocity = velocity
 	end)
 end
 
--- STOP FLY
+-- STOP FLY (BodyForce'u da temizle)
 local function stopFly()
 	local char = LocalPlayer.Character
 	if char then
@@ -238,6 +213,7 @@ local function stopFly()
 	if connection then connection:Disconnect() end
 	if bg then bg:Destroy() end
 	if bv then bv:Destroy() end
+	if bf then bf:Destroy() end  -- BodyForce'u da yok et
 end
 
 -- TOGGLE
@@ -255,37 +231,15 @@ end
 
 Toggle.MouseButton1Click:Connect(toggleFly)
 
--- UP BUTTON (basılı tut)
-UpBtn.MouseButton1Down:Connect(function()
-	upPressed = true
-end)
-UpBtn.MouseButton1Up:Connect(function()
-	upPressed = false
-end)
-UpBtn.MouseLeave:Connect(function()
-	upPressed = false
-end)
-
--- DOWN BUTTON
-DownBtn.MouseButton1Down:Connect(function()
-	downPressed = true
-end)
-DownBtn.MouseButton1Up:Connect(function()
-	downPressed = false
-end)
-DownBtn.MouseLeave:Connect(function()
-	downPressed = false
-end)
-
 -- SPEED
 SpeedUp.MouseButton1Click:Connect(function()
-	flySpeed = math.min(flySpeed + 1, maxSpeed)
+	flySpeed += 1
 	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
 
 SpeedDown.MouseButton1Click:Connect(function()
 	if flySpeed > 1 then
-		flySpeed = flySpeed - 1
+		flySpeed -= 1
 	end
 	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
@@ -293,8 +247,4 @@ end)
 -- RESPAWN FIX
 LocalPlayer.CharacterAdded:Connect(function()
 	stopFly()
-	flying = false
-	Toggle.Text = "FLY: OFF"
-	upPressed = false
-	downPressed = false
 end)
