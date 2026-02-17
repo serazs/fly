@@ -1,298 +1,404 @@
---// SERVICES
+--[[
+	FLY GUI V3 - DÜZENLENMİŞ & ÇALIŞAN SÜRÜM
+	Orijinal uçuş mantığı korundu, hatalar temizlendi.
+]]
+
+-- Servisler
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
---// VARIABLES
+-- Değişkenler
 local flying = false
-local flySpeed = 2
+local speed = 1  -- başlangıç hızı
+local maxSpeed = 50
+local ctrl = {f=0, b=0, l=0, r=0}  -- ileri/geri/sağ/sol
+local lastCtrl = {f=0, b=0, l=0, r=0}
+local currentSpeed = 0
+local bg, bv
+local flightConnection
 local upPressed = false
 local downPressed = false
 
-local bg, bv, bf   -- BodyGyro, BodyVelocity, BodyForce
-local connection
+-- GUI (AYNEN)
+local main = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local up = Instance.new("TextButton")
+local down = Instance.new("TextButton")
+local onof = Instance.new("TextButton")
+local TextLabel = Instance.new("TextLabel")
+local plus = Instance.new("TextButton")
+local speedLabel = Instance.new("TextLabel")
+local mine = Instance.new("TextButton")
+local closebutton = Instance.new("TextButton")
+local mini = Instance.new("TextButton")
+local mini2 = Instance.new("TextButton")
 
---// GUI (SupermanFlyV8 + UP/DOWN butonları eklendi)
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "SupermanFlyV8"
-ScreenGui.ResetOnSpawn = false
+main.Name = "main"
+main.Parent = LocalPlayer:WaitForChild("PlayerGui")
+main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+main.ResetOnSpawn = false
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,200,0,300)  -- Biraz büyüttüm ki UP/DOWN sığsın
-Main.Position = UDim2.new(0.5,-100,0.15,0)
-Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
-Main.Active = true
-Main.Draggable = true
-Instance.new("UICorner", Main)
+Frame.Parent = main
+Frame.BackgroundColor3 = Color3.fromRGB(163, 255, 137)
+Frame.BorderColor3 = Color3.fromRGB(103, 221, 213)
+Frame.Position = UDim2.new(0.100320168, 0, 0.379746825, 0)
+Frame.Size = UDim2.new(0, 190, 0, 57)
+Frame.Active = true
+Frame.Draggable = true
 
-local Stroke = Instance.new("UIStroke", Main)
-Stroke.Thickness = 3
+up.Name = "up"
+up.Parent = Frame
+up.BackgroundColor3 = Color3.fromRGB(79, 255, 152)
+up.Size = UDim2.new(0, 44, 0, 28)
+up.Font = Enum.Font.SourceSans
+up.Text = "UP"
+up.TextColor3 = Color3.fromRGB(0, 0, 0)
+up.TextSize = 14
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1,0,0,35)
-Title.BackgroundTransparency = 1
-Title.Text = "SUPERMAN FLY"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
-Title.TextColor3 = Color3.new(1,1,1)
+down.Name = "down"
+down.Parent = Frame
+down.BackgroundColor3 = Color3.fromRGB(215, 255, 121)
+down.Position = UDim2.new(0, 0, 0.491228074, 0)
+down.Size = UDim2.new(0, 44, 0, 28)
+down.Font = Enum.Font.SourceSans
+down.Text = "DOWN"
+down.TextColor3 = Color3.fromRGB(0, 0, 0)
+down.TextSize = 14
 
-local Toggle = Instance.new("TextButton", Main)
-Toggle.Size = UDim2.new(0.8,0,0,40)
-Toggle.Position = UDim2.new(0.1,0,0.2,0)  -- pozisyon kaydı
-Toggle.Text = "FLY: OFF"
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 16
-Toggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Toggle.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", Toggle)
+onof.Name = "onof"
+onof.Parent = Frame
+onof.BackgroundColor3 = Color3.fromRGB(255, 249, 74)
+onof.Position = UDim2.new(0.702823281, 0, 0.491228074, 0)
+onof.Size = UDim2.new(0, 56, 0, 28)
+onof.Font = Enum.Font.SourceSans
+onof.Text = "fly"
+onof.TextColor3 = Color3.fromRGB(0, 0, 0)
+onof.TextSize = 14
 
-local SpeedLabel = Instance.new("TextLabel", Main)
-SpeedLabel.Size = UDim2.new(1,0,0,30)
-SpeedLabel.Position = UDim2.new(0,0,0.4,0)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Font = Enum.Font.GothamBold
-SpeedLabel.TextSize = 15
-SpeedLabel.TextColor3 = Color3.new(1,1,1)
-SpeedLabel.Text = "SPEED: "..flySpeed
+TextLabel.Parent = Frame
+TextLabel.BackgroundColor3 = Color3.fromRGB(242, 60, 255)
+TextLabel.Position = UDim2.new(0.469327301, 0, 0, 0)
+TextLabel.Size = UDim2.new(0, 100, 0, 28)
+TextLabel.Font = Enum.Font.SourceSans
+TextLabel.Text = "FLY GUI V3"
+TextLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+TextLabel.TextScaled = true
+TextLabel.TextWrapped = true
 
-local SpeedUp = Instance.new("TextButton", Main)
-SpeedUp.Size = UDim2.new(0.35,0,0,30)
-SpeedUp.Position = UDim2.new(0.1,0,0.5,0)
-SpeedUp.Text = "+"
-SpeedUp.Font = Enum.Font.GothamBold
-SpeedUp.TextSize = 18
-SpeedUp.BackgroundColor3 = Color3.fromRGB(40,40,40)
-SpeedUp.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", SpeedUp)
+plus.Name = "plus"
+plus.Parent = Frame
+plus.BackgroundColor3 = Color3.fromRGB(133, 145, 255)
+plus.Position = UDim2.new(0.231578946, 0, 0, 0)
+plus.Size = UDim2.new(0, 45, 0, 28)
+plus.Font = Enum.Font.SourceSans
+plus.Text = "+"
+plus.TextColor3 = Color3.fromRGB(0, 0, 0)
+plus.TextScaled = true
+plus.TextWrapped = true
 
-local SpeedDown = Instance.new("TextButton", Main)
-SpeedDown.Size = UDim2.new(0.35,0,0,30)
-SpeedDown.Position = UDim2.new(0.55,0,0.5,0)
-SpeedDown.Text = "-"
-SpeedDown.Font = Enum.Font.GothamBold
-SpeedDown.TextSize = 18
-SpeedDown.BackgroundColor3 = Color3.fromRGB(40,40,40)
-SpeedDown.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", SpeedDown)
+speedLabel.Name = "speed"
+speedLabel.Parent = Frame
+speedLabel.BackgroundColor3 = Color3.fromRGB(255, 85, 0)
+speedLabel.Position = UDim2.new(0.468421042, 0, 0.491228074, 0)
+speedLabel.Size = UDim2.new(0, 44, 0, 28)
+speedLabel.Font = Enum.Font.SourceSans
+speedLabel.Text = tostring(speed)
+speedLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+speedLabel.TextScaled = true
+speedLabel.TextWrapped = true
 
--- UP BUTTON
-local UpBtn = Instance.new("TextButton", Main)
-UpBtn.Size = UDim2.new(0.35,0,0,30)
-UpBtn.Position = UDim2.new(0.1,0,0.65,0)
-UpBtn.Text = "UP"
-UpBtn.Font = Enum.Font.GothamBold
-UpBtn.TextSize = 16
-UpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-UpBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", UpBtn)
+mine.Name = "mine"
+mine.Parent = Frame
+mine.BackgroundColor3 = Color3.fromRGB(123, 255, 247)
+mine.Position = UDim2.new(0.231578946, 0, 0.491228074, 0)
+mine.Size = UDim2.new(0, 45, 0, 29)
+mine.Font = Enum.Font.SourceSans
+mine.Text = "-"
+mine.TextColor3 = Color3.fromRGB(0, 0, 0)
+mine.TextScaled = true
+mine.TextWrapped = true
 
--- DOWN BUTTON
-local DownBtn = Instance.new("TextButton", Main)
-DownBtn.Size = UDim2.new(0.35,0,0,30)
-DownBtn.Position = UDim2.new(0.55,0,0.65,0)
-DownBtn.Text = "DOWN"
-DownBtn.Font = Enum.Font.GothamBold
-DownBtn.TextSize = 16
-DownBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-DownBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", DownBtn)
+closebutton.Name = "Close"
+closebutton.Parent = main.Frame
+closebutton.BackgroundColor3 = Color3.fromRGB(225, 25, 0)
+closebutton.Font = "SourceSans"
+closebutton.Size = UDim2.new(0, 45, 0, 28)
+closebutton.Text = "X"
+closebutton.TextSize = 30
+closebutton.Position = UDim2.new(0, 0, -1, 27)
 
--- HELP BUTTON (biraz aşağı kaydı)
-local HelpBtn = Instance.new("TextButton", Main)
-HelpBtn.Size = UDim2.new(0.3,0,0,28)
-HelpBtn.Position = UDim2.new(0.35,0,0.82,0)
-HelpBtn.Text = "?"
-HelpBtn.Font = Enum.Font.GothamBold
-HelpBtn.TextSize = 16
-HelpBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-HelpBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", HelpBtn)
+mini.Name = "minimize"
+mini.Parent = main.Frame
+mini.BackgroundColor3 = Color3.fromRGB(192, 150, 230)
+mini.Font = "SourceSans"
+mini.Size = UDim2.new(0, 45, 0, 28)
+mini.Text = "-"
+mini.TextSize = 40
+mini.Position = UDim2.new(0, 44, -1, 27)
 
-local HelpFrame = Instance.new("Frame", ScreenGui)
-HelpFrame.Size = UDim2.new(0,260,0,200)
-HelpFrame.Position = UDim2.new(0.5,-130,0.5,-100)
-HelpFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-HelpFrame.Visible = false
-Instance.new("UICorner", HelpFrame)
+mini2.Name = "minimize2"
+mini2.Parent = main.Frame
+mini2.BackgroundColor3 = Color3.fromRGB(192, 150, 230)
+mini2.Font = "SourceSans"
+mini2.Size = UDim2.new(0, 45, 0, 28)
+mini2.Text = "+"
+mini2.TextSize = 40
+mini2.Position = UDim2.new(0, 44, -1, 57)
+mini2.Visible = false
 
-local HelpText = Instance.new("TextLabel", HelpFrame)
-HelpText.Size = UDim2.new(1,-10,1,-10)
-HelpText.Position = UDim2.new(0,5,0,5)
-HelpText.BackgroundTransparency = 1
-HelpText.Font = Enum.Font.Gotham
-HelpText.TextSize = 14
-HelpText.TextColor3 = Color3.new(1,1,1)
-HelpText.TextWrapped = true
-HelpText.Text =
-[[NASIL ÇALIŞIR
+-- Bildirim
+game:GetService("StarterGui"):SetCore("SendNotification", {
+	Title = "FLY GUI V3";
+	Text = "Düzenlenmiş ve Çalışan Sürüm";
+	Icon = "rbxthumb://type=Asset&id=5107182114&w=150&h=150";
+	Duration = 5;
+})
 
-FLY ON → uçuş başlar
-FLY OFF → kapanır
-
-W → ileri
-S → geri
-A → sol
-D → sağ
-UP/DOWN butonları → yüksel/alçal
-
-Kamera nereye bakarsa oraya uçarsın
-
-Speed + - ile hız değişir
-
-Koltukta otursan bile uçarsın
-(araba dahil)
-
-Paneli sürükleyebilirsin]]
-
--- RGB EFFECT (aynen)
-task.spawn(function()
-	local hue = 0
-	while true do
-		hue = hue + 0.01
-		if hue > 1 then hue = 0 end
-		local color = Color3.fromHSV(hue,1,1)
-		Stroke.Color = color
-		Title.TextColor3 = color
-		task.wait(0.03)
+-- Uçuş için doğru gövde parçasını bul (R6 için Torso, R15 için UpperTorso)
+local function getTorso(character)
+	if character:FindFirstChild("Torso") then
+		return character.Torso
+	elseif character:FindFirstChild("UpperTorso") then
+		return character.UpperTorso
 	end
-end)
-
--- HELP TOGGLE
-HelpBtn.MouseButton1Click:Connect(function()
-	HelpFrame.Visible = not HelpFrame.Visible
-end)
-
--- GET SEAT OR ROOT (aynen)
-local function getFlyPart(char)
-	local hum = char:FindFirstChildWhichIsA("Humanoid")
-	if hum and hum.SeatPart then
-		return hum.SeatPart
-	end
-	return char:FindFirstChild("HumanoidRootPart")
+	return nil
 end
 
--- START FLY (YENİ MEKANİK)
-local function startFly()
-	local char = LocalPlayer.Character
-	if not char then return end
+-- Uçuşu başlat
+local function startFlying()
+	local character = LocalPlayer.Character
+	if not character then return end
 
-	local hum = char:FindFirstChildWhichIsA("Humanoid")
-	if not hum then return end
+	local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+	if not humanoid then return end
 
-	local root = getFlyPart(char)
-	if not root then return end
+	local torso = getTorso(character)
+	if not torso then return end
 
-	-- PlatformStand: karakter ayakta durmaya çalışmasın
-	if not hum.SeatPart then
-		hum.PlatformStand = true
-	end
+	-- PlatformStand aktif et ki karakter ayakta durmaya çalışmasın
+	humanoid.PlatformStand = true
 
-	-- BodyGyro (yumuşak dönüş için P=5000)
-	bg = Instance.new("BodyGyro", root)
-	bg.P = 5000
-	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
-	bg.CFrame = root.CFrame
+	-- BodyGyro: karakteri kameraya doğru döndürür
+	bg = Instance.new("BodyGyro", torso)
+	bg.P = 9e4
+	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	bg.CFrame = torso.CFrame
 
-	-- BodyVelocity
-	bv = Instance.new("BodyVelocity", root)
-	bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+	-- BodyVelocity: hareketi sağlar
+	bv = Instance.new("BodyVelocity", torso)
+	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
 	bv.Velocity = Vector3.zero
 
-	-- BodyForce (yerçekimini iptal et)
-	bf = Instance.new("BodyForce", root)
-	bf.Force = Vector3.new(0, -workspace.Gravity * root.AssemblyMass, 0)
+	-- Değişkenleri sıfırla
+	currentSpeed = 0
+	ctrl = {f=0, b=0, l=0, r=0}
+	lastCtrl = {f=0, b=0, l=0, r=0}
 
-	connection = RunService.RenderStepped:Connect(function()
-		local cam = workspace.CurrentCamera
-		bg.CFrame = cam.CFrame   -- her zaman kameraya dön
-
-		local move = hum.MoveDirection
-		local velocity = Vector3.zero
-
-		-- Yatay hareket (WASD)
-		if move.Magnitude > 0 then
-			velocity = (cam.CFrame.LookVector * move.Z + cam.CFrame.RightVector * move.X) * (flySpeed * 30)
+	-- RenderStepped döngüsü
+	flightConnection = RunService.RenderStepped:Connect(function()
+		if not flying then return end
+		if not character or not character.Parent then
+			stopFlying()
+			return
 		end
 
-		-- Dikey hareket (UP/DOWN butonları)
+		local camera = workspace.CurrentCamera
+		if not camera then return end
+
+		-- WASD kontrolü (UserInputService ile anlık)
+		-- Not: ctrl tablosu zaten InputService tarafından güncelleniyor (aşağıda)
+
+		-- Hız hesaplama (orijinal mantık)
+		local moveHorizontal = ctrl.l + ctrl.r
+		local moveVertical = ctrl.f + ctrl.b
+
+		if moveHorizontal ~= 0 or moveVertical ~= 0 then
+			currentSpeed = currentSpeed + 0.5 + (currentSpeed / maxSpeed)
+			if currentSpeed > maxSpeed then
+				currentSpeed = maxSpeed
+			end
+			lastCtrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
+		elseif currentSpeed ~= 0 then
+			currentSpeed = currentSpeed - 1
+			if currentSpeed < 0 then
+				currentSpeed = 0
+			end
+		end
+
+		-- Hareket vektörünü hesapla (kamera yönüne göre)
+		local cameraCFrame = camera.CFrame
+		local moveDirection = Vector3.zero
+		if moveHorizontal ~= 0 or moveVertical ~= 0 then
+			-- Aktif hareket
+			moveDirection = (cameraCFrame.LookVector * (ctrl.f + ctrl.b) +
+							cameraCFrame.RightVector * (ctrl.l + ctrl.r)) * currentSpeed
+		elseif currentSpeed > 0 then
+			-- Atalet (son yönde devam et)
+			moveDirection = (cameraCFrame.LookVector * (lastCtrl.f + lastCtrl.b) +
+							cameraCFrame.RightVector * (lastCtrl.l + lastCtrl.r)) * currentSpeed
+		end
+
+		-- UP/DOWN butonları (dikey)
 		if upPressed then
-			velocity = velocity + Vector3.new(0, flySpeed * 30, 0)
+			moveDirection = moveDirection + Vector3.new(0, currentSpeed * 2, 0)
 		end
 		if downPressed then
-			velocity = velocity + Vector3.new(0, -flySpeed * 30, 0)
+			moveDirection = moveDirection + Vector3.new(0, -currentSpeed * 2, 0)
 		end
 
-		bv.Velocity = velocity
+		bv.Velocity = moveDirection
+		bg.CFrame = cameraCFrame
 	end)
 end
 
--- STOP FLY
-local function stopFly()
-	local char = LocalPlayer.Character
-	if char then
-		local hum = char:FindFirstChildWhichIsA("Humanoid")
-		if hum then
-			hum.PlatformStand = false
+-- Uçuşu durdur
+local function stopFlying()
+	if flightConnection then
+		flightConnection:Disconnect()
+		flightConnection = nil
+	end
+	if bg then
+		bg:Destroy()
+		bg = nil
+	end
+	if bv then
+		bv:Destroy()
+		bv = nil
+	end
+
+	local character = LocalPlayer.Character
+	if character then
+		local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+		if humanoid then
+			humanoid.PlatformStand = false
 		end
 	end
-
-	if connection then connection:Disconnect() end
-	if bg then bg:Destroy() end
-	if bv then bv:Destroy() end
-	if bf then bf:Destroy() end
 end
 
--- TOGGLE
-local function toggleFly()
+-- Toggle fly
+onof.MouseButton1Click:Connect(function()
 	flying = not flying
 	if flying then
-		Toggle.Text = "FLY: ON"
-		startFly()
+		onof.Text = "FLY: ON"
+		startFlying()
 	else
-		Toggle.Text = "FLY: OFF"
-		stopFly()
+		onof.Text = "fly"
+		stopFlying()
 	end
-end
-Toggle.MouseButton1Click:Connect(toggleFly)
-
--- SPEED
-SpeedUp.MouseButton1Click:Connect(function()
-	flySpeed = flySpeed + 1
-	SpeedLabel.Text = "SPEED: "..flySpeed
-end)
-SpeedDown.MouseButton1Click:Connect(function()
-	if flySpeed > 1 then
-		flySpeed = flySpeed - 1
-	end
-	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
 
--- UP BUTTON (basılı tut)
-UpBtn.MouseButton1Down:Connect(function()
+-- UP butonu (basılı tut)
+up.MouseButton1Down:Connect(function()
 	upPressed = true
 end)
-UpBtn.MouseButton1Up:Connect(function()
+up.MouseButton1Up:Connect(function()
 	upPressed = false
 end)
-UpBtn.MouseLeave:Connect(function()
+up.MouseLeave:Connect(function()
 	upPressed = false
 end)
 
--- DOWN BUTTON (basılı tut)
-DownBtn.MouseButton1Down:Connect(function()
+-- DOWN butonu (basılı tut)
+down.MouseButton1Down:Connect(function()
 	downPressed = true
 end)
-DownBtn.MouseButton1Up:Connect(function()
+down.MouseButton1Up:Connect(function()
 	downPressed = false
 end)
-DownBtn.MouseLeave:Connect(function()
+down.MouseLeave:Connect(function()
 	downPressed = false
 end)
 
--- RESPAWN FIX
-LocalPlayer.CharacterAdded:Connect(function()
-	stopFly()
-	flying = false
-	Toggle.Text = "FLY: OFF"
+-- Hız arttırma
+plus.MouseButton1Click:Connect(function()
+	if speed < maxSpeed then
+		speed = speed + 1
+		speedLabel.Text = tostring(speed)
+	end
 end)
+
+-- Hız azaltma
+mine.MouseButton1Click:Connect(function()
+	if speed > 1 then
+		speed = speed - 1
+		speedLabel.Text = tostring(speed)
+	else
+		speedLabel.Text = "MIN"
+		task.wait(0.5)
+		speedLabel.Text = tostring(speed)
+	end
+end)
+
+-- Kapatma
+closebutton.MouseButton1Click:Connect(function()
+	stopFlying()
+	main:Destroy()
+end)
+
+-- Minimize
+mini.MouseButton1Click:Connect(function()
+	up.Visible = false
+	down.Visible = false
+	onof.Visible = false
+	plus.Visible = false
+	speedLabel.Visible = false
+	mine.Visible = false
+	mini.Visible = false
+	mini2.Visible = true
+	Frame.BackgroundTransparency = 1
+	closebutton.Position = UDim2.new(0, 0, -1, 57)
+end)
+
+mini2.MouseButton1Click:Connect(function()
+	up.Visible = true
+	down.Visible = true
+	onof.Visible = true
+	plus.Visible = true
+	speedLabel.Visible = true
+	mine.Visible = true
+	mini.Visible = true
+	mini2.Visible = false
+	Frame.BackgroundTransparency = 0
+	closebutton.Position = UDim2.new(0, 0, -1, 27)
+end)
+
+-- WASD takibi için UserInputService
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.W then
+		ctrl.f = 1
+	elseif input.KeyCode == Enum.KeyCode.S then
+		ctrl.b = 1
+	elseif input.KeyCode == Enum.KeyCode.A then
+		ctrl.l = 1
+	elseif input.KeyCode == Enum.KeyCode.D then
+		ctrl.r = 1
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.W then
+		ctrl.f = 0
+	elseif input.KeyCode == Enum.KeyCode.S then
+		ctrl.b = 0
+	elseif input.KeyCode == Enum.KeyCode.A then
+		ctrl.l = 0
+	elseif input.KeyCode == Enum.KeyCode.D then
+		ctrl.r = 0
+	end
+end)
+
+-- Karakter değiştiğinde uçuşu durdur
+LocalPlayer.CharacterAdded:Connect(function()
+	stopFlying()
+	flying = false
+	onof.Text = "fly"
+end)
+
+-- Script başlangıcında karakter varsa temizlik
+if LocalPlayer.Character then
+	stopFlying()
+end
