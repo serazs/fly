@@ -13,13 +13,13 @@ local LocalPlayer = Players.LocalPlayer
 local flying = false
 local speed = 10  -- başlangıç hızı
 local maxSpeed = 50
-local bodyGyro, bodyVelocity
-var
-local flightConnection
+local bodyGyro = nil
+local bodyVelocity = nil
+local flightConnection = nil
 local upPressed = false
 local downPressed = false
 
--- GUI oluşturma (tamamen ikinci scriptteki gibi, sadece ufak düzenlemeler)
+-- GUI oluşturma
 local main = Instance.new("ScreenGui")
 local Frame = Instance.new("Frame")
 local up = Instance.new("TextButton")
@@ -162,7 +162,7 @@ local function getTorso(character)
 		return character.UpperTorso
 	end
 	return nil
-end
+}
 
 -- Uçuşu başlat
 local function startFlying()
@@ -180,7 +180,7 @@ local function startFlying()
 
 	-- BodyGyro: karakteri kameraya doğru döndürür
 	bodyGyro = Instance.new("BodyGyro")
-	bodyGyro.P = 5000  -- dönüş hassasiyeti (yüksek değer daha sert döner)
+	bodyGyro.P = 5000  -- dönüş hassasiyeti
 	bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
 	bodyGyro.CFrame = torso.CFrame
 	bodyGyro.Parent = torso
@@ -210,9 +210,6 @@ local function startFlying()
 		local velocity = Vector3.zero
 
 		if moveDirection.Magnitude > 0 then
-			-- Yatay hareket: kameranın lookVector ve rightVector'ı kullanılır
-			-- moveDirection.Z: ileri/geri (W/S)
-			-- moveDirection.X: sağ/sol (A/D)
 			velocity = (camera.CFrame.LookVector * moveDirection.Z + camera.CFrame.RightVector * moveDirection.X) * speed
 		end
 
@@ -256,7 +253,7 @@ end
 onof.MouseButton1Click:Connect(function()
 	flying = not flying
 	if flying then
-		onof.Text = "FLY ON"
+		onof.Text = "FLY: ON"
 		startFlying()
 	else
 		onof.Text = "fly"
