@@ -12,7 +12,7 @@ local godModeConnection
 
 -- --- HAYALET ARAYÜZ (GHOST UI) ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyV9_God"
+ScreenGui.Name = "XENO FLY"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
@@ -175,7 +175,7 @@ local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Name = "ToggleBtn"
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-ToggleBtn.Text = "HAYALET: OFF"
+ToggleBtn.Text = "FLY: OFF"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -184,11 +184,11 @@ Instance.new("UICorner", ToggleBtn)
 ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        ToggleBtn.Text = "HAYALET: ON"
+        ToggleBtn.Text = "FLY: ON"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
         startFly()
     else
-        ToggleBtn.Text = "HAYALET: OFF"
+        ToggleBtn.Text = "FLY: OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end
 end)
