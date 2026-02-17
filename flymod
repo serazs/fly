@@ -1,12 +1,11 @@
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "SERAZS FLY PROJECT",
-   LoadingTitle = "Fly & Bypass Yükleniyor...",
+   Name = "SERAZS FLY PROJECT V3",
+   LoadingTitle = "Vehicle & Fly Bypass Hazırlanıyor...",
    LoadingSubtitle = "by serazs",
-   ConfigurationSaving = {
-      Enabled = false
-   }
+   ConfigurationSaving = { Enabled = false }
 })
 
 -- DEĞİŞKENLER
@@ -20,85 +19,84 @@ local flySpeed = 50
 local bv = nil
 local bg = nil
 
--- UÇMA FONKSİYONU
+-- UÇMA MOTORU (Geliştirilmiş Sürüm)
 local function startFly()
     local char = LP.Character or LP.CharacterAdded:Wait()
+    local humanoid = char:WaitForChild("Humanoid")
     local hrp = char:WaitForChild("HumanoidRootPart")
     
-    -- Varsa eskileri temizle
+    -- Eğer bir yere oturuyorsan, o parçayı (aracı) hedef al
+    local target = hrp
+    if humanoid.SeatPart then
+        target = humanoid.SeatPart
+    end
+
+    -- Temizlik
     if bv then bv:Destroy() end
     if bg then bg:Destroy() end
 
-    -- Yeni fizik objeleri
     bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bv.Velocity = Vector3.new(0, 0, 0)
-    bv.Parent = hrp
+    bv.Parent = target
 
     bg = Instance.new("BodyGyro")
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 9e4
-    bg.Parent = hrp
+    bg.Parent = target
 
     task.spawn(function()
         while flying do
             RunService.RenderStepped:Wait()
-            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Mouse.Hit.LookVector)
+            
+            -- Eğer araçtaysan aracın, değilsen senin yönünü fareye çevir
+            target.CFrame = CFrame.new(target.Position, target.Position + Mouse.Hit.LookVector)
             
             local direction = Vector3.new(0, 0.1, 0)
             
-            -- Kontroller
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                 direction = direction + Mouse.Hit.LookVector * flySpeed
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
                 direction = direction - Mouse.Hit.LookVector * flySpeed
             end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                direction = direction * CFrame.Angles(0, math.rad(90), 0)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                direction = direction * CFrame.Angles(0, math.rad(-90), 0)
-            end
             
-            -- Bypass Titreşimi (Sunucuyu kandırmak için)
-            bv.Velocity = direction + Vector3.new(math.random(-1,1)/10, 0, math.random(-1,1)/10)
+            -- BYPASS: Sunucu fark etmesin diye küçük fiziksel sapmalar
+            bv.Velocity = direction + Vector3.new(math.random(-1,1)/8, 0, math.random(-1,1)/8)
+
+            -- SPACE'E BASARSA UÇMAYI KAPAT VE KALK
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                flying = false
+                if humanoid.Sit then humanoid.Sit = false end -- Koltuktan zorla kaldır
+            end
         end
         if bv then bv:Destroy() end
         if bg then bg:Destroy() end
     end)
 end
 
--- ARAYÜZ SEKMELERİ
-local MainTab = Window:CreateTab("Ana Menü", 4483345998)
-
-MainTab:CreateSection("Uçuş Kontrolü")
+-- ARAYÜZ
+local MainTab = Window:CreateTab("Uçuş Paneli", 4483345998)
 
 MainTab:CreateToggle({
-   Name = "Fly (Uçuşu Aç/Kapat)",
+   Name = "Master Fly (Araç + Karakter)",
    CurrentValue = false,
    Callback = function(Value)
       flying = Value
-      if flying then
-         startFly()
-      end
+      if flying then startFly() end
    end,
 })
 
 MainTab:CreateSlider({
-   Name = "Uçuş Hızı",
+   Name = "Hız Ayarı",
    Min = 10,
    Max = 300,
    Default = 50,
-   Increment = 1,
-   ValueName = "Hız",
-   Callback = function(Value)
-      flySpeed = Value
-   end,
+   Callback = function(Value) flySpeed = Value end,
 })
 
-MainTab:CreateSection("Kısayollar")
-MainTab:CreateLabel("W-S tuşları ile ileri/geri gidebilirsin.")
-MainTab:CreateLabel("Mouse nereye bakarsa karakter oraya döner.")
+MainTab:CreateSection("Nasıl Kullanılır?")
+MainTab:CreateLabel("1. Bir araca bin veya ayakta dur.")
+MainTab:CreateLabel("2. Fly'ı aç, her şey seninle uçar.")
+MainTab:CreateLabel("3. Space tuşuna basarsan uçuş biter ve inersin.")
 
-Rayfield:Notify({Title = "Proje Hazır!", Content = "Hızı menüden ayarlayabilirsin kanka.", Duration = 5})
+Rayfield:Notify({Title = "V3 Aktif!", Content = "Artık oturduğun her şeyi uçurabilirsin kanka.", Duration = 5})
