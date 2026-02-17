@@ -2,139 +2,122 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
 
 local flying = false
 local flySpeed = 50
 local bv, bg
 
--- --- ARAYÜZ OLUŞTURMA (MINI SQUARE UI) ---
+-- --- YENİ NESİL BASİT ARAYÜZ ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyUI"
-
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 150, 0, 160)
-MainFrame.Position = UDim2.new(0.5, -75, 0.5, -80)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Size = UDim2.new(0, 140, 0, 150)
+MainFrame.Position = UDim2.new(0.5, -70, 0.1, 0) -- Ekranın üst ortasında başlar
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 0
+MainFrame.Draggable = true
 MainFrame.Active = true
-MainFrame.Draggable = true -- Menüyü ekranda kaydırabilirsin
 
--- Parlama Efekti (Glow)
 local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(0, 255, 255) -- Neon Turkuaz Parlama
-UIStroke.Thickness = 3
-UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke.Color = Color3.fromRGB(0, 255, 127) -- Parlayan Yeşil Kenarlık
+UIStroke.Thickness = 2
 
 local UICorner = Instance.new("UICorner", MainFrame)
-UICorner.CornerRadius = UDim.new(0, 15)
 
--- Başlık
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "FLY MOD"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "FLY MOD V4"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 18
+Title.TextSize = 14
 
--- Hız Göstergesi
 local SpeedLabel = Instance.new("TextLabel", MainFrame)
 SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
-SpeedLabel.Position = UDim2.new(0, 0, 0.3, 0)
-SpeedLabel.Text = "Hız: " .. flySpeed
-SpeedLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+SpeedLabel.Position = UDim2.new(0, 0, 0.2, 0)
+SpeedLabel.Text = "HIZ: " .. flySpeed
+SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Font = Enum.Font.Gotham
-SpeedLabel.TextSize = 20
+SpeedLabel.Font = Enum.Font.GothamBold
+SpeedLabel.TextSize = 18
 
--- Artırma Tuşu (+)
-local PlusBtn = Instance.new("TextButton", MainFrame)
-PlusBtn.Size = UDim2.new(0, 40, 0, 40)
-PlusBtn.Position = UDim2.new(0.6, 0, 0.6, 0)
-PlusBtn.Text = "+"
-PlusBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-PlusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-PlusBtn.Font = Enum.Font.GothamBold
-PlusBtn.TextSize = 25
+-- + / - Butonları
+local function createBtn(txt, pos, color)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 45, 0, 45)
+    btn.Position = pos
+    btn.Text = txt
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 20
+    Instance.new("UICorner", btn)
+    return btn
+end
 
-local PlusCorner = Instance.new("UICorner", PlusBtn)
+local PlusBtn = createBtn("+", UDim2.new(0.6, 0, 0.45, 0), Color3.fromRGB(40, 40, 40))
+local MinusBtn = createBtn("-", UDim2.new(0.1, 0, 0.45, 0), Color3.fromRGB(40, 40, 40))
 
--- Azaltma Tuşu (-)
-local MinusBtn = Instance.new("TextButton", MainFrame)
-MinusBtn.Size = UDim2.new(0, 40, 0, 40)
-MinusBtn.Position = UDim2.new(0.15, 0, 0.6, 0)
-MinusBtn.Text = "-"
-MinusBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MinusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinusBtn.Font = Enum.Font.GothamBold
-MinusBtn.TextSize = 25
-
-local MinusCorner = Instance.new("UICorner", MinusBtn)
-
--- Aç/Kapat Butonu (Title'a tıkla)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 25)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.85, 0)
-ToggleBtn.Text = "BAŞLAT"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+ToggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.78, 0)
+ToggleBtn.Text = "BASLAT"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 12
 Instance.new("UICorner", ToggleBtn)
 
--- --- FONKSİYONLAR ---
+-- --- FİZİK VE KONTROL MOTORU ---
 
-local function updateSpeed(val)
-    flySpeed = math.clamp(flySpeed + val, 10, 500)
-    SpeedLabel.Text = "Hız: " .. flySpeed
-end
+PlusBtn.MouseButton1Click:Connect(function()
+    flySpeed = math.min(flySpeed + 10, 300)
+    SpeedLabel.Text = "HIZ: " .. flySpeed
+end)
 
-PlusBtn.MouseButton1Click:Connect(function() updateSpeed(10) end)
-MinusBtn.MouseButton1Click:Connect(function() updateSpeed(-10) end)
-
-local function stopFly()
-    flying = false
-    ToggleBtn.Text = "BAŞLAT"
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    if bv then bv:Destroy() end
-    if bg then bg:Destroy() end
-end
+MinusBtn.MouseButton1Click:Connect(function()
+    flySpeed = math.max(flySpeed - 10, 10)
+    SpeedLabel.Text = "HIZ: " .. flySpeed
+end)
 
 local function startFly()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local target = char:WaitForChild("HumanoidRootPart")
     local hum = char:WaitForChild("Humanoid")
-    local hrp = char:WaitForChild("HumanoidRootPart")
     
-    local target = hrp
     if hum.SeatPart then target = hum.SeatPart end
 
     bv = Instance.new("BodyVelocity", target)
     bg = Instance.new("BodyGyro", target)
-    
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bg.P = 9e4
+    bg.P = 50000 -- Daha yumuşak dönüş
 
     task.spawn(function()
         while flying do
             RunService.RenderStepped:Wait()
-            target.CFrame = CFrame.new(target.Position, target.Position + Mouse.Hit.LookVector)
             
-            local direction = Vector3.new(0, 0.1, 0)
+            local direction = Vector3.new(0, 0, 0)
+            
+            -- Sadece W veya S basılıyken hareket et (Daha kolay kontrol)
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                direction = direction + Mouse.Hit.LookVector * flySpeed
+                direction = Camera.CFrame.LookVector * flySpeed
             elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                direction = direction - Mouse.Hit.LookVector * flySpeed
+                direction = -Camera.CFrame.LookVector * flySpeed
             end
             
-            bv.Velocity = direction + Vector3.new(math.random(-1,1)/10, 0, math.random(-1,1)/10)
+            -- Sabitleyici: Tuşa basılmıyorsa havada asılı tut
+            bv.Velocity = direction
+            bg.CFrame = Camera.CFrame
 
+            -- Space ile güvenli çıkış
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                stopFly()
-                if hum.Sit then hum.Sit = false end
+                flying = false
             end
         end
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+        ToggleBtn.Text = "BASLAT"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
     end)
 end
 
@@ -142,9 +125,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
         ToggleBtn.Text = "DURDUR"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
         startFly()
-    else
-        stopFly()
     end
 end)
