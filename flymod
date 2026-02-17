@@ -8,11 +8,11 @@ local flying = false
 local flySpeed = 50
 local bv, bg
 local noclipConnection
-local godModeConnection
+local forceField -- Fiziksel hasarı engellemek için
 
 -- --- HAYALET ARAYÜZ (GHOST UI) ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "XENO FLY"
+ScreenGui.Name = "GhostFlyV9_God_Fixed"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
@@ -30,7 +30,7 @@ Instance.new("UICorner", MainFrame)
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "GHOST V9: GOD MODE"
+Title.Text = "GHOST V9: GOD"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
@@ -45,39 +45,47 @@ SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 18
 
--- --- ÖLÜMSÜZLÜK VE NOCLIP SİSTEMİ ---
+-- --- GELİŞMİŞ ÖLÜMSÜZLÜK SİSTEMİ ---
 local function EnableGhostMode(char, state)
     if noclipConnection then noclipConnection:Disconnect() end
-    if godModeConnection then godModeConnection:Disconnect() end
+    if forceField then forceField:Destroy() end
 
     if state then
         local hum = char:FindFirstChild("Humanoid")
+        
+        -- 1. FORCEFIELD: Fiziksel hasarı (kurşun, çarpma, patlama) tamamen bloklar
+        forceField = Instance.new("ForceField")
+        forceField.Visible = false -- Etrafındaki mavi parlamayı gizler
+        forceField.Parent = char
+
+        -- 2. ÖLÜMÜ ENGELLE: Humanoid durumunu kontrol altına al
         if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) 
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
         end
 
+        -- 3. NOCLIP & CAN YENİLEME DÖNGÜSÜ
         noclipConnection = RunService.Stepped:Connect(function()
             if not flying then return end
             
+            -- Canı hep fulle
             if hum and hum.Health < hum.MaxHealth then
                 hum.Health = hum.MaxHealth
             end
 
+            -- Noclip: Duvarlardan geçiş
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
-
-            if hum and hum.SeatPart then
-                local vehicle = hum.SeatPart.Parent
-                for _, vPart in pairs(vehicle:GetDescendants()) do
-                    if vPart:IsA("BasePart") then
-                        vPart.CanCollide = false
-                    end
-                end
-            end
         end)
+    else
+        -- Kapatıldığında her şeyi eski haline getir
+        if forceField then forceField:Destroy() end
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+        end
     end
 end
 
@@ -88,13 +96,7 @@ local function startFly()
     local hrp = char:WaitForChild("HumanoidRootPart")
     
     local target = hrp
-    local isSitting = false
     
-    if hum.SeatPart then 
-        target = hum.SeatPart 
-        isSitting = true
-    end
-
     if bv then bv:Destroy() end
     if bg then bg:Destroy() end
 
@@ -106,10 +108,9 @@ local function startFly()
 
     EnableGhostMode(char, true)
 
-    if not isSitting then
-        hum.PlatformStand = true
-        if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
-    end
+    -- Superman yatışını kaldırdık, PlatformStand ile sadece fiziksel sürtünmeyi kestik
+    hum.PlatformStand = true
+    if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
 
     task.spawn(function()
         while flying and char and char.Parent do
@@ -120,16 +121,17 @@ local function startFly()
                 direction = Camera.CFrame.LookVector * flySpeed
             elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
                 direction = -Camera.CFrame.LookVector * flySpeed
+            elseif UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                direction = -Camera.CFrame.RightVector * (flySpeed/1.5)
+            elseif UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                direction = Camera.CFrame.RightVector * (flySpeed/1.5)
             end
             
-            bv.Velocity = direction + Vector3.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
-            
-            -- DÜZELTME: Karakter artık 90 derece yatmayacak, her zaman kameraya göre dik duracak.
-            bg.CFrame = Camera.CFrame 
+            bv.Velocity = direction
+            bg.CFrame = Camera.CFrame -- Karakter hep dik (senin istediğin gibi)
 
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                 flying = false
-                if hum.Sit then hum.Sit = false end
             end
         end
         
@@ -175,7 +177,7 @@ local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Name = "ToggleBtn"
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-ToggleBtn.Text = "FLY: OFF"
+ToggleBtn.Text = "HAYALET: OFF"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -184,11 +186,11 @@ Instance.new("UICorner", ToggleBtn)
 ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        ToggleBtn.Text = "FLY: ON"
+        ToggleBtn.Text = "HAYALET: ON"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
         startFly()
     else
-        ToggleBtn.Text = "FLY: OFF"
+        ToggleBtn.Text = "HAYALET: OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end
 end)
