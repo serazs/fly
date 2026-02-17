@@ -1,4 +1,4 @@
--- FLY V3 - PREMIUM MODERN UI
+-- FLY V4 - SQUARE PREMIUM UI
 local Player = game.Players.LocalPlayer
 local Mouse = Player:GetMouse()
 local Character = Player.Character or Player.CharacterAdded:Wait()
@@ -6,134 +6,133 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local flying = false
 local speed = 50
 
--- GUI ANA YAPI
+-- GUI
 local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
-ScreenGui.Name = "FlyV3_Premium"
+ScreenGui.Name = "FlyV4_Premium"
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 250, 0, 220)
-MainFrame.Position = UDim2.new(0.5, -125, 0.5, -110)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.Size = UDim2.new(0, 260, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18,18,22)
 MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
+MainFrame.Active = true
+MainFrame.Draggable = true
 
--- Köşeleri Yuvarlatma
-local UICorner = Instance.new("UICorner", MainFrame)
-UICorner.CornerRadius = UDim.new(0, 15)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
 
--- Neon Rainbow Çerçeve
-local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Thickness = 3
-UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-UIStroke.Transparency = 0.2
+local Stroke = Instance.new("UIStroke", MainFrame)
+Stroke.Thickness = 2
+Stroke.Transparency = 0.2
 
-local UIGradient = Instance.new("UIGradient", UIStroke)
-UIGradient.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 255)),
-	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+local Gradient = Instance.new("UIGradient", Stroke)
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255))
 }
 
--- Başlık Alanı
+task.spawn(function()
+    while task.wait(0.02) do
+        Gradient.Rotation += 2
+    end
+end)
+
+-- TITLE
 local Title = Instance.new("TextLabel", MainFrame)
-Title.Text = "FLY V3"
-Title.Size = UDim2.new(1, 0, 0, 50)
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "FLY PANEL"
+Title.Size = UDim2.new(1,0,0,50)
 Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.new(1,1,1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 28
+Title.TextSize = 26
 
--- Hız Bilgisi Konteynırı
-local SpeedContainer = Instance.new("Frame", MainFrame)
-SpeedContainer.Size = UDim2.new(0.8, 0, 0.25, 0)
-SpeedContainer.Position = UDim2.new(0.1, 0, 0.25, 0)
-SpeedContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-Instance.new("UICorner", SpeedContainer).CornerRadius = UDim.new(0, 10)
+-- SPEED BOX
+local SpeedBox = Instance.new("Frame", MainFrame)
+SpeedBox.Size = UDim2.new(0.7,0,0,60)
+SpeedBox.Position = UDim2.new(0.15,0,0.25,0)
+SpeedBox.BackgroundColor3 = Color3.fromRGB(30,30,35)
+Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0,10)
 
-local SpeedDisplay = Instance.new("TextLabel", SpeedContainer)
-SpeedDisplay.Text = "HIZ: " .. speed
-SpeedDisplay.Size = UDim2.new(1, 0, 1, 0)
-SpeedDisplay.TextColor3 = Color3.fromRGB(0, 255, 150)
-SpeedDisplay.BackgroundTransparency = 1
-SpeedDisplay.Font = Enum.Font.GothamSemibold
-SpeedDisplay.TextSize = 22
+local SpeedLabel = Instance.new("TextLabel", SpeedBox)
+SpeedLabel.Size = UDim2.new(1,0,1,0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.TextColor3 = Color3.fromRGB(0,255,150)
+SpeedLabel.Font = Enum.Font.GothamBold
+SpeedLabel.TextSize = 22
+SpeedLabel.Text = "SPEED : "..speed
 
--- BUTONLAR (+ / -)
-local function CreateButton(text, pos, color)
-	local btn = Instance.new("TextButton", MainFrame)
-	btn.Text = text
-	btn.Size = UDim2.new(0, 50, 0, 50)
-	btn.Position = pos
-	btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-	btn.TextColor3 = color
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 24
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-	
-	-- Basit Animasyon
-	btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60) end)
-	btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40) end)
-	
-	return btn
+-- BUTTON CREATOR
+local function createBtn(txt,pos,color)
+    local b = Instance.new("TextButton", MainFrame)
+    b.Text = txt
+    b.Size = UDim2.new(0,55,0,55)
+    b.Position = pos
+    b.BackgroundColor3 = Color3.fromRGB(35,35,40)
+    b.TextColor3 = color
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 26
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
+
+    b.MouseEnter:Connect(function()
+        b.BackgroundColor3 = Color3.fromRGB(55,55,65)
+    end)
+    b.MouseLeave:Connect(function()
+        b.BackgroundColor3 = Color3.fromRGB(35,35,40)
+    end)
+
+    return b
 end
 
-local MinusBtn = CreateButton("-", UDim2.new(0.1, 0, 0.55, 0), Color3.fromRGB(255, 80, 80))
-local PlusBtn = CreateButton("+", UDim2.new(0.7, 0, 0.55, 0), Color3.fromRGB(80, 255, 80))
+local Minus = createBtn("-",UDim2.new(0.15,0,0.55,0),Color3.fromRGB(255,80,80))
+local Plus = createBtn("+",UDim2.new(0.6,0,0.55,0),Color3.fromRGB(80,255,80))
 
--- Uçuş Butonu
-local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Text = "UÇUŞU BAŞLAT"
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 255)
-ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-ToggleBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+-- TOGGLE BUTTON
+local Toggle = Instance.new("TextButton", MainFrame)
+Toggle.Size = UDim2.new(0.7,0,0,40)
+Toggle.Position = UDim2.new(0.15,0,0.82,0)
+Toggle.BackgroundColor3 = Color3.fromRGB(40,120,255)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.GothamBold
+Toggle.TextSize = 18
+Toggle.Text = "FLY : OFF"
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(0,8)
 
---- SİSTEM MANTIĞI ---
-
--- Rainbow Animasyonu
-task.spawn(function()
-	while task.wait(0.02) do
-		UIGradient.Rotation = UIGradient.Rotation + 2
-	end
+-- SPEED CONTROL
+Plus.MouseButton1Click:Connect(function()
+    speed += 25
+    SpeedLabel.Text = "SPEED : "..speed
 end)
 
--- Hız Kontrolü
-PlusBtn.MouseButton1Click:Connect(function()
-	speed = speed + 25
-	SpeedDisplay.Text = "HIZ: " .. speed
+Minus.MouseButton1Click:Connect(function()
+    if speed > 25 then
+        speed -= 25
+        SpeedLabel.Text = "SPEED : "..speed
+    end
 end)
 
-MinusBtn.MouseButton1Click:Connect(function()
-	if speed > 25 then
-		speed = speed - 25
-		SpeedDisplay.Text = "HIZ: " .. speed
-	end
-end)
+-- FLY SYSTEM
+Toggle.MouseButton1Click:Connect(function()
+    flying = not flying
 
--- Uçuş Mekaniği
-ToggleBtn.MouseButton1Click:Connect(function()
-	flying = not flying
-	if flying then
-		ToggleBtn.Text = "UÇUŞ AKTİF"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
-		
-		local bv = Instance.new("BodyVelocity")
-		bv.Name = "FlyVel"
-		bv.Parent = Character:WaitForChild("HumanoidRootPart")
-		bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-		
-		task.spawn(function()
-			while flying do
-				bv.Velocity = Mouse.Hit.LookVector * speed
-				task.wait()
-			end
-			bv:Destroy()
-		end)
-	else
-		ToggleBtn.Text = "UÇUŞ KAPALI"
-		ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 255)
-	end
+    if flying then
+        Toggle.Text = "FLY : ON"
+        Toggle.BackgroundColor3 = Color3.fromRGB(0,180,120)
+
+        local bv = Instance.new("BodyVelocity")
+        bv.Name = "FlyVel"
+        bv.MaxForce = Vector3.new(math.huge,math.huge,math.huge)
+        bv.Parent = Character:WaitForChild("HumanoidRootPart")
+
+        task.spawn(function()
+            while flying do
+                bv.Velocity = Mouse.Hit.LookVector * speed
+                task.wait()
+            end
+            bv:Destroy()
+        end)
+
+    else
+        Toggle.Text = "FLY : OFF"
+        Toggle.BackgroundColor3 = Color3.fromRGB(40,120,255)
+    end
 end)
