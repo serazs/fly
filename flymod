@@ -8,9 +8,9 @@ local flying = false
 local flySpeed = 50
 local bv, bg
 
--- --- RESETLENMEYEN GHOST UI ---
+-- --- RESETLENMEYEN UI ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyV6"
+ScreenGui.Name = "GhostFlyV7"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
@@ -22,17 +22,9 @@ MainFrame.Draggable = true
 MainFrame.Active = true
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(255, 215, 0) -- Superman Altın Sarısı Parlama
+UIStroke.Color = Color3.fromRGB(255, 0, 50) -- Neon Kırmızı Parlama
 UIStroke.Thickness = 3
 Instance.new("UICorner", MainFrame)
-
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "SUPERMAN FLY V6"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 12
 
 local SpeedLabel = Instance.new("TextLabel", MainFrame)
 SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
@@ -43,53 +35,38 @@ SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 18
 
--- --- SUPERMAN DURUŞ FONKSİYONU ---
-local function SetSupermanPose(state)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    
-    -- Animasyonları durdur/başlat
-    if char:FindFirstChild("Animate") then
-        char.Animate.Disabled = state
-    end
-
-    if state then
-        -- Superman duruşu: Vücudu yatay yap ve kolları düzelt
-        hum.PlatformStand = true
-        -- Karakterin dik durmasını sağlayan eklemleri manuel manipüle edebiliriz
-        -- Ama en temiz yöntem BodyGyro ile CFrame kontrolüdür (startFly içinde yapılıyor)
-    else
-        hum.PlatformStand = false
-        -- Karakteri tekrar ayağa dik
-        if root then
-            root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
-        end
-    end
-end
-
--- --- UÇMA VE ANTIBAN MOTORU ---
+-- --- UÇMA VE ARAÇ KONTROL MOTORU ---
 local function startFly()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local target = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
     
+    -- Önemli: Eğer bir şeyin üzerine oturduysan onu "target" yap
+    local target = hrp
+    local isSitting = false
+    if hum.SeatPart then 
+        target = hum.SeatPart 
+        isSitting = true
+    end
+
     if bv then bv:Destroy() end
     if bg then bg:Destroy() end
 
     bv = Instance.new("BodyVelocity", target)
     bg = Instance.new("BodyGyro", target)
-    
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 50000
 
-    SetSupermanPose(true)
+    -- Sadece ayaktaysan Superman duruşu yap (Koltuktayken animasyonu bozmamak için)
+    if not isSitting then
+        hum.PlatformStand = true
+        if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
+    end
 
     task.spawn(function()
         while flying and char and char.Parent do
             RunService.RenderStepped:Wait()
-            
             local direction = Vector3.new(0, 0, 0)
             
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then
@@ -98,40 +75,53 @@ local function startFly()
                 direction = -Camera.CFrame.LookVector * flySpeed
             end
             
-            -- ANTIBAN BYPASS: Sabit hız yerine saniyede 60 kez değişen mikro-titreşimler
-            -- Sunucu "bu adam uçuyor mu yoksa interneti mi kötü?" diye ikilemde kalır.
-            bv.Velocity = direction + Vector3.new(math.random(-2,2)/10, math.random(-2,2)/10, math.random(-2,2)/10)
+            -- ANTIBAN BYPASS: Mikro titreşimler ekle
+            bv.Velocity = direction + Vector3.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
             
-            -- SUPERMAN BAKIŞI: Karakteri yere paralel (yatay) yapar
-            bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
+            -- Yönlendirme
+            if isSitting then
+                -- Araçtayken düz uç (takla atmasın diye)
+                bg.CFrame = Camera.CFrame
+            else
+                -- Superman gibi yatay uç
+                bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
+            end
+
+            -- Space ile güvenli çıkış
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                flying = false
+                if hum.Sit then hum.Sit = false end
+            end
         end
         
-        SetSupermanPose(false)
+        -- Kapatınca her şeyi düzelt
+        hum.PlatformStand = false
+        if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
         if bv then bv:Destroy() end
         if bg then bg:Destroy() end
     end)
 end
 
--- --- UI KONTROLLERİ ---
-local function createBtn(txt, pos, color, callback)
+-- --- UI BUTONLARI ---
+local function createBtn(txt, pos, callback)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 45, 0, 45)
     btn.Position = pos
     btn.Text = txt
-    btn.BackgroundColor3 = color
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 20
+    btn.TextSize = 25
     Instance.new("UICorner", btn)
     btn.MouseButton1Click:Connect(callback)
 end
 
-createBtn("+", UDim2.new(0.6, 0, 0.4, 0), Color3.fromRGB(30, 30, 30), function()
-    flySpeed = math.min(flySpeed + 10, 400)
+createBtn("+", UDim2.new(0.6, 0, 0.4, 0), function()
+    flySpeed = math.min(flySpeed + 10, 500)
     SpeedLabel.Text = "HIZ: " .. flySpeed
 end)
 
-createBtn("-", UDim2.new(0.1, 0, 0.4, 0), Color3.fromRGB(30, 30, 30), function()
+createBtn("-", UDim2.new(0.1, 0, 0.4, 0), function()
     flySpeed = math.max(flySpeed - 10, 10)
     SpeedLabel.Text = "HIZ: " .. flySpeed
 end)
@@ -139,7 +129,7 @@ end)
 local ToggleBtn = Instance.new("TextButton", MainFrame)
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-ToggleBtn.Text = "SUPERMAN: OFF"
+ToggleBtn.Text = "FLY: OFF"
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
@@ -148,11 +138,11 @@ Instance.new("UICorner", ToggleBtn)
 ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        ToggleBtn.Text = "SUPERMAN: ON"
+        ToggleBtn.Text = "FLY: ON"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
         startFly()
     else
-        ToggleBtn.Text = "SUPERMAN: OFF"
+        ToggleBtn.Text = "FLY: OFF"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end
 end)
