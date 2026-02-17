@@ -1,101 +1,139 @@
--- Fly V3 UI Script
+-- FLY V3 - PREMIUM MODERN UI
 local Player = game.Players.LocalPlayer
 local Mouse = Player:GetMouse()
+local Character = Player.Character or Player.CharacterAdded:Wait()
 
--- GUI Ana Yapısı
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local SpeedLabel = Instance.new("TextLabel")
-local SpeedValue = Instance.new("TextLabel")
-local IncreaseBtn = Instance.new("TextButton")
-local DecreaseBtn = Instance.new("TextButton")
-local UIGradient = Instance.new("UIGradient")
-local UIStroke = Instance.new("UIStroke")
+local flying = false
+local speed = 50
 
--- Özellikler
-ScreenGui.Parent = Player.PlayerGui
-ScreenGui.Name = "FlyV33_UI"
+-- GUI ANA YAPI
+local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
+ScreenGui.Name = "FlyV3_Premium"
 
+local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
-MainFrame.Size = UDim2.new(0, 200, 0, 150)
+MainFrame.Size = UDim2.new(0, 250, 0, 220)
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -110)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
 
--- Rengarenk Çerçeve (Rainbow Stroke)
-UIStroke.Parent = MainFrame
-UIStroke.Thickness = 4
+-- Köşeleri Yuvarlatma
+local UICorner = Instance.new("UICorner", MainFrame)
+UICorner.CornerRadius = UDim.new(0, 15)
+
+-- Neon Rainbow Çerçeve
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Thickness = 3
 UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke.Transparency = 0.2
 
-UIGradient.Parent = UIStroke
+local UIGradient = Instance.new("UIGradient", UIStroke)
 UIGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 255, 0)),
-    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 0)),
-    ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 255, 255)),
-    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 0, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 255)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
 }
 
--- Başlık
-Title.Parent = MainFrame
+-- Başlık Alanı
+local Title = Instance.new("TextLabel", MainFrame)
 Title.Text = "FLY V3"
-Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
-Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 24
+Title.TextSize = 28
 
--- Hız Göstergesi
-SpeedValue.Parent = MainFrame
-SpeedValue.Text = "Hız: 50"
-SpeedValue.Position = UDim2.new(0, 0, 0.4, 0)
-SpeedValue.Size = UDim2.new(1, 0, 0, 30)
-SpeedValue.BackgroundTransparency = 1
-SpeedValue.TextColor3 = Color3.new(1, 1, 1)
-SpeedValue.Font = Enum.Font.Gotham
-SpeedValue.TextSize = 18
+-- Hız Bilgisi Konteynırı
+local SpeedContainer = Instance.new("Frame", MainFrame)
+SpeedContainer.Size = UDim2.new(0.8, 0, 0.25, 0)
+SpeedContainer.Position = UDim2.new(0.1, 0, 0.25, 0)
+SpeedContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Instance.new("UICorner", SpeedContainer).CornerRadius = UDim.new(0, 10)
 
--- Arttırma Butonu (+)
-IncreaseBtn.Parent = MainFrame
-IncreaseBtn.Text = "+"
-IncreaseBtn.Position = UDim2.new(0.6, 0, 0.7, 0)
-IncreaseBtn.Size = UDim2.new(0, 40, 0, 30)
-IncreaseBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-IncreaseBtn.TextColor3 = Color3.new(1, 1, 1)
+local SpeedDisplay = Instance.new("TextLabel", SpeedContainer)
+SpeedDisplay.Text = "HIZ: " .. speed
+SpeedDisplay.Size = UDim2.new(1, 0, 1, 0)
+SpeedDisplay.TextColor3 = Color3.fromRGB(0, 255, 150)
+SpeedDisplay.BackgroundTransparency = 1
+SpeedDisplay.Font = Enum.Font.GothamSemibold
+SpeedDisplay.TextSize = 22
 
--- Azaltma Butonu (-)
-DecreaseBtn.Parent = MainFrame
-DecreaseBtn.Text = "-"
-DecreaseBtn.Position = UDim2.new(0.2, 0, 0.7, 0)
-DecreaseBtn.Size = UDim2.new(0, 40, 0, 30)
-DecreaseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-DecreaseBtn.TextColor3 = Color3.new(1, 1, 1)
+-- BUTONLAR (+ / -)
+local function CreateButton(text, pos, color)
+	local btn = Instance.new("TextButton", MainFrame)
+	btn.Text = text
+	btn.Size = UDim2.new(0, 50, 0, 50)
+	btn.Position = pos
+	btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+	btn.TextColor3 = color
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 24
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+	
+	-- Basit Animasyon
+	btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60) end)
+	btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40) end)
+	
+	return btn
+end
 
---- MANTIK (LOGIC) ---
+local MinusBtn = CreateButton("-", UDim2.new(0.1, 0, 0.55, 0), Color3.fromRGB(255, 80, 80))
+local PlusBtn = CreateButton("+", UDim2.new(0.7, 0, 0.55, 0), Color3.fromRGB(80, 255, 80))
 
-local currentSpeed = 50
+-- Uçuş Butonu
+local ToggleBtn = Instance.new("TextButton", MainFrame)
+ToggleBtn.Text = "UÇUŞU BAŞLAT"
+ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 255)
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
 
--- Gökkuşağı Döngüsü
-spawn(function()
-    local angle = 0
-    while task.wait(0.05) do
-        angle = angle + 5
-        UIGradient.Rotation = angle
-    end
+--- SİSTEM MANTIĞI ---
+
+-- Rainbow Animasyonu
+task.spawn(function()
+	while task.wait(0.02) do
+		UIGradient.Rotation = UIGradient.Rotation + 2
+	end
 end)
 
 -- Hız Kontrolü
-IncreaseBtn.MouseButton1Click:Connect(function()
-    currentSpeed = currentSpeed + 10
-    SpeedValue.Text = "Hız: " .. currentSpeed
+PlusBtn.MouseButton1Click:Connect(function()
+	speed = speed + 25
+	SpeedDisplay.Text = "HIZ: " .. speed
 end)
 
-DecreaseBtn.MouseButton1Click:Connect(function()
-    if currentSpeed > 0 then
-        currentSpeed = currentSpeed - 10
-        SpeedValue.Text = "Hız: " .. currentSpeed
-    end
+MinusBtn.MouseButton1Click:Connect(function()
+	if speed > 25 then
+		speed = speed - 25
+		SpeedDisplay.Text = "HIZ: " .. speed
+	end
+end)
+
+-- Uçuş Mekaniği
+ToggleBtn.MouseButton1Click:Connect(function()
+	flying = not flying
+	if flying then
+		ToggleBtn.Text = "UÇUŞ AKTİF"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
+		
+		local bv = Instance.new("BodyVelocity")
+		bv.Name = "FlyVel"
+		bv.Parent = Character:WaitForChild("HumanoidRootPart")
+		bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+		
+		task.spawn(function()
+			while flying do
+				bv.Velocity = Mouse.Hit.LookVector * speed
+				task.wait()
+			end
+			bv:Destroy()
+		end)
+	else
+		ToggleBtn.Text = "UÇUŞ KAPALI"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 100, 255)
+	end
 end)
