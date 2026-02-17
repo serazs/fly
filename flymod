@@ -15,7 +15,7 @@ local UIStroke = Instance.new("UIStroke")
 
 -- Özellikler
 ScreenGui.Parent = Player.PlayerGui
-ScreenGui.Name = "FlyV3_UI"
+ScreenGui.Name = "FlyV33_UI"
 
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
