@@ -1,196 +1,219 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local savedSpeed = 50
 
-local flying = false
-local flySpeed = 50
-local bv, bg
-local noclipConnection
-local forceField -- Fiziksel hasarı engellemek için
+local function gui()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local HRP = character:WaitForChild("HumanoidRootPart")
+    local Camera = workspace.CurrentCamera
 
--- --- HAYALET ARAYÜZ (GHOST UI) ---
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyV9_God_Fixed"
-ScreenGui.ResetOnSpawn = false
+    local baseSpeed = savedSpeed
+    local flySpeed = baseSpeed
+    local flying = false
+    local forwardHold = 0
+    local inputFlags = { forward = false, back = false, left = false, right = false, up = false, down = false }
 
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 150, 0, 200) 
-MainFrame.Position = UDim2.new(0.5, -75, 0.1, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
+    -- Fizik Nesneleri
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    local bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
 
-local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(85, 0, 255) 
-UIStroke.Thickness = 3
-Instance.new("UICorner", MainFrame)
+    -- --- ARAYÜZ OLUŞTURMA ---
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ModernFlyGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local Title = Instance.new("TextLabel", MainFrame)
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "GHOST V9: GOD"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 13
+    -- Ana Panel
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 200, 0, 150)
+    MainFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Active = true
+    MainFrame.Draggable = true -- Sürüklenebilir özellik
+    MainFrame.Parent = screenGui
 
-local SpeedLabel = Instance.new("TextLabel", MainFrame)
-SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
-SpeedLabel.Position = UDim2.new(0, 0, 0.2, 0)
-SpeedLabel.Text = "HIZ: " .. flySpeed
-SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Font = Enum.Font.GothamBold
-SpeedLabel.TextSize = 18
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = MainFrame
 
--- --- GELİŞMİŞ ÖLÜMSÜZLÜK SİSTEMİ ---
-local function EnableGhostMode(char, state)
-    if noclipConnection then noclipConnection:Disconnect() end
-    if forceField then forceField:Destroy() end
+    local Title = Instance.new("TextLabel")
+    Title.Text = "GEMINI FLY V2"
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.BackgroundTransparency = 1
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 14
+    Title.Parent = MainFrame
 
-    if state then
-        local hum = char:FindFirstChild("Humanoid")
-        
-        -- 1. FORCEFIELD: Fiziksel hasarı (kurşun, çarpma, patlama) tamamen bloklar
-        forceField = Instance.new("ForceField")
-        forceField.Visible = false -- Etrafındaki mavi parlamayı gizler
-        forceField.Parent = char
+    -- Fly Toggle Butonu
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleBtn"
+    toggleButton.Text = "FLY: OFF"
+    toggleButton.Size = UDim2.new(0, 160, 0, 40)
+    toggleButton.Position = UDim2.new(0.5, -80, 0, 40)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 14
+    toggleButton.Parent = MainFrame
+    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 6)
 
-        -- 2. ÖLÜMÜ ENGELLE: Humanoid durumunu kontrol altına al
-        if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+    -- Hız Girişi Alanı
+    local speedLabel = Instance.new("TextLabel")
+    speedLabel.Text = "SPEED:"
+    speedLabel.Size = UDim2.new(0, 60, 0, 30)
+    speedLabel.Position = UDim2.new(0, 20, 0, 95)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    speedLabel.Font = Enum.Font.Gotham
+    speedLabel.TextSize = 12
+    speedLabel.Parent = MainFrame
+
+    local speedBox = Instance.new("TextBox")
+    speedBox.Name = "SpeedBox"
+    speedBox.Text = tostring(baseSpeed)
+    speedBox.Size = UDim2.new(0, 90, 0, 30)
+    speedBox.Position = UDim2.new(0, 85, 0, 95)
+    speedBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    speedBox.TextColor3 = Color3.fromRGB(0, 255, 150)
+    speedBox.Font = Enum.Font.GothamBold
+    speedBox.TextSize = 14
+    speedBox.Parent = MainFrame
+    Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
+
+    -- Animasyon ve Uçuş Mantığı (Senin Kodun)
+    local function newAnim(id)
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. id
+        return anim
+    end
+
+    local animations = {
+        forward = newAnim(90872539), up = newAnim(90872539),
+        right1 = newAnim(136801964), right2 = newAnim(142495255),
+        left1 = newAnim(136801964), left2 = newAnim(142495255),
+        flyLow1 = newAnim(97169019), flyLow2 = newAnim(282574440),
+        flyFast = newAnim(282574440), back1 = newAnim(136801964),
+        back2 = newAnim(106772613), back3 = newAnim(42070810),
+        back4 = newAnim(214744412), down = newAnim(233322916),
+        idle1 = newAnim(97171309)
+    }
+
+    local tracks = {}
+    for name, anim in pairs(animations) do
+        tracks[name] = humanoid:LoadAnimation(anim)
+    end
+
+    local function stopAll()
+        for _, track in pairs(tracks) do track:Stop() end
+    end
+
+    local function startFlying()
+        flying = true
+        forwardHold = 0
+        flySpeed = baseSpeed
+        bodyVelocity.Parent = HRP
+        bodyGyro.Parent = HRP
+        humanoid.PlatformStand = true
+        toggleButton.Text = "FLY: ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    end
+
+    local function stopFlying()
+        flying = false
+        bodyVelocity.Parent = nil
+        bodyGyro.Parent = nil
+        humanoid.PlatformStand = false
+        stopAll()
+        toggleButton.Text = "FLY: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    end
+
+    toggleButton.MouseButton1Click:Connect(function()
+        if flying then stopFlying() else startFlying() end
+    end)
+
+    speedBox.FocusLost:Connect(function()
+        local num = tonumber(speedBox.Text)
+        if num and num > 0 then
+            baseSpeed = num
+            savedSpeed = num
+            if flying then flySpeed = baseSpeed end
+        else
+            speedBox.Text = tostring(baseSpeed)
         end
+    end)
 
-        -- 3. NOCLIP & CAN YENİLEME DÖNGÜSÜ
-        noclipConnection = RunService.Stepped:Connect(function()
-            if not flying then return end
-            
-            -- Canı hep fulle
-            if hum and hum.Health < hum.MaxHealth then
-                hum.Health = hum.MaxHealth
-            end
+    -- Giriş Kontrolleri
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if gpe then return end
+        if input.KeyCode == Enum.KeyCode.W then inputFlags.forward = true end
+        if input.KeyCode == Enum.KeyCode.S then inputFlags.back = true end
+        if input.KeyCode == Enum.KeyCode.A then inputFlags.left = true end
+        if input.KeyCode == Enum.KeyCode.D then inputFlags.right = true end
+        if input.KeyCode == Enum.KeyCode.E then inputFlags.up = true end
+        if input.KeyCode == Enum.KeyCode.Q then inputFlags.down = true end
+    end)
 
-            -- Noclip: Duvarlardan geçiş
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
+    UserInputService.InputEnded:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.W then inputFlags.forward = false end
+        if input.KeyCode == Enum.KeyCode.S then inputFlags.back = false end
+        if input.KeyCode == Enum.KeyCode.A then inputFlags.left = false false end
+        if input.KeyCode == Enum.KeyCode.D then inputFlags.right = false end
+        if input.KeyCode == Enum.KeyCode.E then inputFlags.up = false end
+        if input.KeyCode == Enum.KeyCode.Q then inputFlags.down = false end
+    end)
+
+    RunService.RenderStepped:Connect(function(dt)
+        if not flying then return end
+        if not inputFlags.forward then forwardHold = 0 end
+
+        local dir = Vector3.zero
+        local camCF = Camera.CFrame
+
+        if inputFlags.forward then dir += camCF.LookVector end
+        if inputFlags.back then dir -= camCF.LookVector end
+        if inputFlags.left then dir -= camCF.RightVector end
+        if inputFlags.right then dir += camCF.RightVector end
+        if inputFlags.up then dir += Vector3.yAxis end
+        if inputFlags.down then dir -= Vector3.yAxis end
+
+        if dir.Magnitude > 0 then dir = dir.Unit end
+
+        bodyVelocity.Velocity = dir * flySpeed
+        bodyGyro.CFrame = camCF
+
+        -- Animasyon Mantığı (Aynı Bırakıldı)
+        if inputFlags.up then
+            if not tracks.up.IsPlaying then stopAll(); tracks.up:Play() end
+        elseif inputFlags.down then
+            if not tracks.down.IsPlaying then stopAll(); tracks.down:Play() end
+        elseif inputFlags.forward then
+            forwardHold += dt
+            if forwardHold >= 3 then
+                if not tracks.flyFast.IsPlaying then
+                    stopAll(); flySpeed = baseSpeed * 1.5
+                    tracks.flyFast:Play()
+                end
+            else
+                if not tracks.flyLow1.IsPlaying then
+                    stopAll(); flySpeed = baseSpeed
+                    tracks.flyLow1:Play(); tracks.flyLow2:Play()
                 end
             end
-        end)
-    else
-        -- Kapatıldığında her şeyi eski haline getir
-        if forceField then forceField:Destroy() end
-        local hum = char:FindFirstChild("Humanoid")
-        if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-        end
-    end
-end
-
--- --- UÇUŞ MOTORU ---
-local function startFly()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hum = char:WaitForChild("Humanoid")
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    
-    local target = hrp
-    
-    if bv then bv:Destroy() end
-    if bg then bg:Destroy() end
-
-    bv = Instance.new("BodyVelocity", target)
-    bg = Instance.new("BodyGyro", target)
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bg.P = 50000
-
-    EnableGhostMode(char, true)
-
-    -- Superman yatışını kaldırdık, PlatformStand ile sadece fiziksel sürtünmeyi kestik
-    hum.PlatformStand = true
-    if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
-
-    task.spawn(function()
-        while flying and char and char.Parent do
-            RunService.RenderStepped:Wait()
-            local direction = Vector3.new(0, 0, 0)
-            
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                direction = Camera.CFrame.LookVector * flySpeed
-            elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                direction = -Camera.CFrame.LookVector * flySpeed
-            elseif UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                direction = -Camera.CFrame.RightVector * (flySpeed/1.5)
-            elseif UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                direction = Camera.CFrame.RightVector * (flySpeed/1.5)
-            end
-            
-            bv.Velocity = direction
-            bg.CFrame = Camera.CFrame -- Karakter hep dik (senin istediğin gibi)
-
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                flying = false
-            end
-        end
-        
-        EnableGhostMode(char, false)
-        hum.PlatformStand = false
-        if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
-        if bv then bv:Destroy() end
-        if bg then bg:Destroy() end
-        
-        local btn = MainFrame:FindFirstChild("ToggleBtn")
-        if btn then
-            btn.Text = "HAYALET: OFF"
-            btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        else
+            if not tracks.idle1.IsPlaying then stopAll(); tracks.idle1:Play() end
         end
     end)
 end
 
--- --- BUTONLAR ---
-local function createBtn(txt, pos, callback)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.Size = UDim2.new(0, 45, 0, 45)
-    btn.Position = pos
-    btn.Text = txt
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 25
-    Instance.new("UICorner", btn)
-    btn.MouseButton1Click:Connect(callback)
-end
-
-createBtn("+", UDim2.new(0.6, 0, 0.4, 0), function()
-    flySpeed = math.min(flySpeed + 10, 1000)
-    SpeedLabel.Text = "HIZ: " .. flySpeed
-end)
-
-createBtn("-", UDim2.new(0.1, 0, 0.4, 0), function()
-    flySpeed = math.max(flySpeed - 10, 10)
-    SpeedLabel.Text = "HIZ: " .. flySpeed
-end)
-
-local ToggleBtn = Instance.new("TextButton", MainFrame)
-ToggleBtn.Name = "ToggleBtn"
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
-ToggleBtn.Text = "HAYALET: OFF"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", ToggleBtn)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    flying = not flying
-    if flying then
-        ToggleBtn.Text = "HAYALET: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(85, 0, 255)
-        startFly()
-    else
-        ToggleBtn.Text = "HAYALET: OFF"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-    end
-end)
+gui()
