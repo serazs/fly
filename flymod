@@ -1,6 +1,7 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -8,8 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 local flying = false
 local flySpeed = 2
 
-local bg
-local bv
+local bg, bv, bf
 local connection
 
 --// GUI
@@ -148,7 +148,7 @@ local function getFlyPart(char)
 	return char:FindFirstChild("HumanoidRootPart")
 end
 
--- START FLY
+-- START FLY (DÜZENLENDİ)
 local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
@@ -164,22 +164,25 @@ local function startFly()
 	end
 
 	bg = Instance.new("BodyGyro", root)
-	bg.P = 9e4
+	bg.P = 2000
 	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
 
 	bv = Instance.new("BodyVelocity", root)
 	bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+
+	bf = Instance.new("BodyForce", root)
+	bf.Force = Vector3.new(0, -workspace.Gravity * root.AssemblyMass, 0)
 
 	connection = RunService.RenderStepped:Connect(function()
 		local cam = workspace.CurrentCamera
 		bg.CFrame = cam.CFrame
 
 		local move = hum.MoveDirection
-
 		if move.Magnitude > 0 then
-			bv.Velocity =
-				(cam.CFrame.LookVector * move.Z * -1 +
-				 cam.CFrame.RightVector * move.X) * (flySpeed * 50)
+			bv.Velocity = (
+				cam.CFrame.LookVector * move.Z +
+				cam.CFrame.RightVector * move.X
+			) * (flySpeed * 30)
 		else
 			bv.Velocity = Vector3.zero
 		end
@@ -199,6 +202,7 @@ local function stopFly()
 	if connection then connection:Disconnect() end
 	if bg then bg:Destroy() end
 	if bv then bv:Destroy() end
+	if bf then bf:Destroy() end
 end
 
 -- TOGGLE
