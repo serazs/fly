@@ -16,14 +16,13 @@ ScreenGui.Name = "GhostFlyV9_God"
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 150, 0, 200) -- Biraz uzattık
+MainFrame.Size = UDim2.new(0, 150, 0, 200) 
 MainFrame.Position = UDim2.new(0.5, -75, 0.1, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Mavi/Mor Karışımı Parlama (Ultra Ghost)
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Color = Color3.fromRGB(85, 0, 255) 
 UIStroke.Thickness = 3
@@ -48,35 +47,28 @@ SpeedLabel.TextSize = 18
 
 -- --- ÖLÜMSÜZLÜK VE NOCLIP SİSTEMİ ---
 local function EnableGhostMode(char, state)
-    -- Önceki döngüleri temizle
     if noclipConnection then noclipConnection:Disconnect() end
     if godModeConnection then godModeConnection:Disconnect() end
 
     if state then
         local hum = char:FindFirstChild("Humanoid")
-        
-        -- GOD MODE: Ölmeyi reddet
         if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) -- Servera "Ben ölmem" de
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) 
         end
 
-        -- SÜREKLİ DÖNGÜ (Noclip + Can Yenileme)
         noclipConnection = RunService.Stepped:Connect(function()
             if not flying then return end
             
-            -- 1. Canı Sürekli Fulle (Lava düşsen bile ölmezsin)
             if hum and hum.Health < hum.MaxHealth then
                 hum.Health = hum.MaxHealth
             end
 
-            -- 2. Karakter Noclip (Her parçanın çarpışmasını kapat)
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
 
-            -- 3. Araç Noclip (Eğer arabada oturuyorsan araba da geçer)
             if hum and hum.SeatPart then
                 local vehicle = hum.SeatPart.Parent
                 for _, vPart in pairs(vehicle:GetDescendants()) do
@@ -112,10 +104,8 @@ local function startFly()
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 50000
 
-    -- Ghost Modu (Noclip + God Mode) Aktif Et
     EnableGhostMode(char, true)
 
-    -- Superman Animasyonu (Sadece ayaktaysan)
     if not isSitting then
         hum.PlatformStand = true
         if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
@@ -132,14 +122,10 @@ local function startFly()
                 direction = -Camera.CFrame.LookVector * flySpeed
             end
             
-            -- BYPASS TİTREŞİMİ
             bv.Velocity = direction + Vector3.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
             
-            if isSitting then
-                bg.CFrame = Camera.CFrame -- Araç düz
-            else
-                bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0) -- Superman yatay
-            end
+            -- DÜZELTME: Karakter artık 90 derece yatmayacak, her zaman kameraya göre dik duracak.
+            bg.CFrame = Camera.CFrame 
 
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                 flying = false
@@ -147,8 +133,7 @@ local function startFly()
             end
         end
         
-        -- KAPATMA İŞLEMLERİ
-        EnableGhostMode(char, false) -- God mode ve Noclip kapat
+        EnableGhostMode(char, false)
         hum.PlatformStand = false
         if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
         if bv then bv:Destroy() end
