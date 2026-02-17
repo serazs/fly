@@ -7,24 +7,34 @@ local Camera = workspace.CurrentCamera
 local flying = false
 local flySpeed = 50
 local bv, bg
+local noclipLoop -- Noclip döngüsü için değişken
 
--- --- RESETLENMEYEN UI ---
+-- --- ARAYÜZ (GHOST UI) ---
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.Name = "GhostFlyV7"
-ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "GhostFlyV8_Noclip"
+ScreenGui.ResetOnSpawn = false -- Ölünce gitmez
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 140, 0, 180)
-MainFrame.Position = UDim2.new(0.5, -70, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 150, 0, 190)
+MainFrame.Position = UDim2.new(0.5, -75, 0.1, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 0
 MainFrame.Draggable = true
 MainFrame.Active = true
 
+-- Mor Parlama (Hayalet Efekti)
 local UIStroke = Instance.new("UIStroke", MainFrame)
-UIStroke.Color = Color3.fromRGB(255, 0, 50) -- Neon Kırmızı Parlama
+UIStroke.Color = Color3.fromRGB(170, 0, 255) 
 UIStroke.Thickness = 3
 Instance.new("UICorner", MainFrame)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "GHOST FLY V8"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
 
 local SpeedLabel = Instance.new("TextLabel", MainFrame)
 SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
@@ -35,15 +45,48 @@ SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 18
 
--- --- UÇMA VE ARAÇ KONTROL MOTORU ---
+-- --- NOCLIP FONKSİYONU ---
+local function EnableNoclip(char, state)
+    if noclipLoop then noclipLoop:Disconnect() end
+    
+    if state then
+        -- Her karede çarpışmayı kapat (RunService.Stepped en iyisidir)
+        noclipLoop = RunService.Stepped:Connect(function()
+            if not flying then 
+                if noclipLoop then noclipLoop:Disconnect() end
+                return 
+            end
+            
+            -- Karakterin parçalarını hayalet yap
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide == true then
+                    part.CanCollide = false
+                end
+            end
+
+            -- Eğer arabada oturuyorsan, arabayı da hayalet yap
+            local hum = char:FindFirstChild("Humanoid")
+            if hum and hum.SeatPart then
+                local vehicle = hum.SeatPart.Parent -- Araba modeli
+                for _, vPart in pairs(vehicle:GetDescendants()) do
+                    if vPart:IsA("BasePart") and vPart.CanCollide == true then
+                        vPart.CanCollide = false
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- --- UÇMA MOTORU ---
 local function startFly()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hum = char:WaitForChild("Humanoid")
     local hrp = char:WaitForChild("HumanoidRootPart")
     
-    -- Önemli: Eğer bir şeyin üzerine oturduysan onu "target" yap
     local target = hrp
     local isSitting = false
+    
     if hum.SeatPart then 
         target = hum.SeatPart 
         isSitting = true
@@ -58,7 +101,10 @@ local function startFly()
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 50000
 
-    -- Sadece ayaktaysan Superman duruşu yap (Koltuktayken animasyonu bozmamak için)
+    -- Noclip'i başlat
+    EnableNoclip(char, true)
+
+    -- Superman Duruşu (Sadece ayaktaysan)
     if not isSitting then
         hum.PlatformStand = true
         if char:FindFirstChild("Animate") then char.Animate.Disabled = true end
@@ -75,34 +121,41 @@ local function startFly()
                 direction = -Camera.CFrame.LookVector * flySpeed
             end
             
-            -- ANTIBAN BYPASS: Mikro titreşimler ekle
+            -- BYPASS: Hız Titreşimi
             bv.Velocity = direction + Vector3.new(math.random(-1,1)/5, 0, math.random(-1,1)/5)
             
             -- Yönlendirme
             if isSitting then
-                -- Araçtayken düz uç (takla atmasın diye)
-                bg.CFrame = Camera.CFrame
+                bg.CFrame = Camera.CFrame -- Araç düz dursun
             else
-                -- Superman gibi yatay uç
+                -- Superman yatay duruş
                 bg.CFrame = Camera.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
             end
 
-            -- Space ile güvenli çıkış
+            -- Space ile çıkış
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                 flying = false
                 if hum.Sit then hum.Sit = false end
             end
         end
         
-        -- Kapatınca her şeyi düzelt
+        -- Kapatma İşlemleri
+        EnableNoclip(char, false) -- Noclip kapat
         hum.PlatformStand = false
         if char:FindFirstChild("Animate") then char.Animate.Disabled = false end
         if bv then bv:Destroy() end
         if bg then bg:Destroy() end
+        
+        -- Butonu eski haline getir
+        local btn = MainFrame:FindFirstChild("ToggleBtn")
+        if btn then
+            btn.Text = "FLY: OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        end
     end)
 end
 
--- --- UI BUTONLARI ---
+-- --- BUTONLAR ---
 local function createBtn(txt, pos, callback)
     local btn = Instance.new("TextButton", MainFrame)
     btn.Size = UDim2.new(0, 45, 0, 45)
@@ -117,7 +170,7 @@ local function createBtn(txt, pos, callback)
 end
 
 createBtn("+", UDim2.new(0.6, 0, 0.4, 0), function()
-    flySpeed = math.min(flySpeed + 10, 500)
+    flySpeed = math.min(flySpeed + 10, 800) -- Hız limitini artırdım
     SpeedLabel.Text = "HIZ: " .. flySpeed
 end)
 
@@ -127,6 +180,7 @@ createBtn("-", UDim2.new(0.1, 0, 0.4, 0), function()
 end)
 
 local ToggleBtn = Instance.new("TextButton", MainFrame)
+ToggleBtn.Name = "ToggleBtn"
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.75, 0)
 ToggleBtn.Text = "FLY: OFF"
@@ -138,8 +192,8 @@ Instance.new("UICorner", ToggleBtn)
 ToggleBtn.MouseButton1Click:Connect(function()
     flying = not flying
     if flying then
-        ToggleBtn.Text = "FLY: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        ToggleBtn.Text = "FLY: GHOST"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 255) -- Mor (Ghost Mode)
         startFly()
     else
         ToggleBtn.Text = "FLY: OFF"
