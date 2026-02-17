@@ -1,10 +1,15 @@
+-- // Ayarlar
 local savedSpeed = 50
+local uiName = "XenoFly_V2"
 
-local function gui()
+-- // Eski GUI varsa sil (Üst üste binmesin)
+local oldGui = game:GetService("CoreGui"):FindFirstChild(uiName) or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(uiName)
+if oldGui then oldGui:Destroy() end
+
+local function runFly()
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local UserInputService = game:GetService("UserInputService")
-    local TweenService = game:GetService("TweenService")
     
     local player = Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
@@ -18,202 +23,165 @@ local function gui()
     local forwardHold = 0
     local inputFlags = { forward = false, back = false, left = false, right = false, up = false, down = false }
 
-    -- Fizik Nesneleri
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-    local bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    -- // Fizik Nesneleri Hazırlığı
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bg.P = 15000 -- Daha yumuşak dönüş
 
-    -- --- ARAYÜZ OLUŞTURMA ---
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "ModernFlyGui"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = player:WaitForChild("PlayerGui")
+    -- // Arayüz Oluşturma
+    local sg = Instance.new("ScreenGui")
+    sg.Name = uiName
+    sg.ResetOnSpawn = false
+    -- Xeno CoreGui desteği varsa oraya, yoksa PlayerGui'ye kurar
+    local parent = (game:GetService("RunService"):IsStudio() and player.PlayerGui) or (game:GetService("CoreGui"))
+    sg.Parent = parent
 
-    -- Ana Panel
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 200, 0, 150)
-    MainFrame.Position = UDim2.new(0.5, -100, 0.5, -75)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Draggable = true -- Sürüklenebilir özellik
-    MainFrame.Parent = screenGui
+    local main = Instance.new("Frame")
+    main.Size = UDim2.new(0, 180, 0, 130)
+    main.Position = UDim2.new(0.05, 0, 0.4, 0)
+    main.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    main.BorderSizePixel = 0
+    main.Active = true
+    main.Draggable = true -- Sürüklenebilir
+    main.Parent = sg
+    
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 25)
+    title.Text = "XENO FLY"
+    title.TextColor3 = Color3.fromRGB(200, 200, 200)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 12
+    title.Parent = main
 
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = MainFrame
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 150, 0, 35)
+    toggle.Position = UDim2.new(0, 15, 0, 35)
+    toggle.Text = "FLY: OFF"
+    toggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    toggle.TextColor3 = Color3.white
+    toggle.Font = Enum.Font.GothamBold
+    toggle.Parent = main
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 6)
 
-    local Title = Instance.new("TextLabel")
-    Title.Text = "GEMINI FLY V2"
-    Title.Size = UDim2.new(1, 0, 0, 30)
-    Title.BackgroundTransparency = 1
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 14
-    Title.Parent = MainFrame
+    local speedInput = Instance.new("TextBox")
+    speedInput.Size = UDim2.new(0, 150, 0, 30)
+    speedInput.Position = UDim2.new(0, 15, 0, 80)
+    speedInput.Text = tostring(baseSpeed)
+    speedInput.PlaceholderText = "Hız..."
+    speedInput.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    speedInput.TextColor3 = Color3.fromRGB(0, 255, 127)
+    speedInput.Font = Enum.Font.GothamBold
+    speedInput.Parent = main
+    Instance.new("UICorner", speedInput).CornerRadius = UDim.new(0, 6)
 
-    -- Fly Toggle Butonu
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Name = "ToggleBtn"
-    toggleButton.Text = "FLY: OFF"
-    toggleButton.Size = UDim2.new(0, 160, 0, 40)
-    toggleButton.Position = UDim2.new(0.5, -80, 0, 40)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.TextSize = 14
-    toggleButton.Parent = MainFrame
-    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 6)
-
-    -- Hız Girişi Alanı
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Text = "SPEED:"
-    speedLabel.Size = UDim2.new(0, 60, 0, 30)
-    speedLabel.Position = UDim2.new(0, 20, 0, 95)
-    speedLabel.BackgroundTransparency = 1
-    speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    speedLabel.Font = Enum.Font.Gotham
-    speedLabel.TextSize = 12
-    speedLabel.Parent = MainFrame
-
-    local speedBox = Instance.new("TextBox")
-    speedBox.Name = "SpeedBox"
-    speedBox.Text = tostring(baseSpeed)
-    speedBox.Size = UDim2.new(0, 90, 0, 30)
-    speedBox.Position = UDim2.new(0, 85, 0, 95)
-    speedBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    speedBox.TextColor3 = Color3.fromRGB(0, 255, 150)
-    speedBox.Font = Enum.Font.GothamBold
-    speedBox.TextSize = 14
-    speedBox.Parent = MainFrame
-    Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 4)
-
-    -- Animasyon ve Uçuş Mantığı (Senin Kodun)
-    local function newAnim(id)
-        local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://" .. id
-        return anim
+    -- // Animasyon Tanımları
+    local function loadAnim(id)
+        local a = Instance.new("Animation")
+        a.AnimationId = "rbxassetid://" .. id
+        return humanoid:LoadAnimation(a)
     end
 
-    local animations = {
-        forward = newAnim(90872539), up = newAnim(90872539),
-        right1 = newAnim(136801964), right2 = newAnim(142495255),
-        left1 = newAnim(136801964), left2 = newAnim(142495255),
-        flyLow1 = newAnim(97169019), flyLow2 = newAnim(282574440),
-        flyFast = newAnim(282574440), back1 = newAnim(136801964),
-        back2 = newAnim(106772613), back3 = newAnim(42070810),
-        back4 = newAnim(214744412), down = newAnim(233322916),
-        idle1 = newAnim(97171309)
+    local tracks = {
+        idle = loadAnim(97171309),
+        move = loadAnim(90872539),
+        fast = loadAnim(282574440)
     }
 
-    local tracks = {}
-    for name, anim in pairs(animations) do
-        tracks[name] = humanoid:LoadAnimation(anim)
+    local function stopAnims()
+        for _, t in pairs(tracks) do t:Stop() end
     end
 
-    local function stopAll()
-        for _, track in pairs(tracks) do track:Stop() end
-    end
-
-    local function startFlying()
+    -- // Fonksiyonlar
+    local function startFly()
         flying = true
-        forwardHold = 0
-        flySpeed = baseSpeed
-        bodyVelocity.Parent = HRP
-        bodyGyro.Parent = HRP
+        bv.Parent = HRP
+        bg.Parent = HRP
         humanoid.PlatformStand = true
-        toggleButton.Text = "FLY: ON"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggle.Text = "FLY: ON"
+        toggle.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
     end
 
-    local function stopFlying()
+    local function stopFly()
         flying = false
-        bodyVelocity.Parent = nil
-        bodyGyro.Parent = nil
+        bv.Parent = nil
+        bg.Parent = nil
         humanoid.PlatformStand = false
-        stopAll()
-        toggleButton.Text = "FLY: OFF"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        stopAnims()
+        toggle.Text = "FLY: OFF"
+        toggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
     end
 
-    toggleButton.MouseButton1Click:Connect(function()
-        if flying then stopFlying() else startFlying() end
+    toggle.MouseButton1Click:Connect(function()
+        if flying then stopFly() else startFly() end
     end)
 
-    speedBox.FocusLost:Connect(function()
-        local num = tonumber(speedBox.Text)
-        if num and num > 0 then
-            baseSpeed = num
-            savedSpeed = num
-            if flying then flySpeed = baseSpeed end
-        else
-            speedBox.Text = tostring(baseSpeed)
-        end
+    speedInput.FocusLost:Connect(function()
+        local n = tonumber(speedInput.Text)
+        if n then baseSpeed = n else speedInput.Text = tostring(baseSpeed) end
     end)
 
-    -- Giriş Kontrolleri
-    UserInputService.InputBegan:Connect(function(input, gpe)
+    -- // Kontroller
+    UserInputService.InputBegan:Connect(function(i, gpe)
         if gpe then return end
-        if input.KeyCode == Enum.KeyCode.W then inputFlags.forward = true end
-        if input.KeyCode == Enum.KeyCode.S then inputFlags.back = true end
-        if input.KeyCode == Enum.KeyCode.A then inputFlags.left = true end
-        if input.KeyCode == Enum.KeyCode.D then inputFlags.right = true end
-        if input.KeyCode == Enum.KeyCode.E then inputFlags.up = true end
-        if input.KeyCode == Enum.KeyCode.Q then inputFlags.down = true end
+        if i.KeyCode == Enum.KeyCode.W then inputFlags.forward = true
+        elseif i.KeyCode == Enum.KeyCode.S then inputFlags.back = true
+        elseif i.KeyCode == Enum.KeyCode.A then inputFlags.left = true
+        elseif i.KeyCode == Enum.KeyCode.D then inputFlags.right = true
+        elseif i.KeyCode == Enum.KeyCode.E then inputFlags.up = true
+        elseif i.KeyCode == Enum.KeyCode.Q then inputFlags.down = true end
     end)
 
-    UserInputService.InputEnded:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.W then inputFlags.forward = false end
-        if input.KeyCode == Enum.KeyCode.S then inputFlags.back = false end
-        if input.KeyCode == Enum.KeyCode.A then inputFlags.left = false false end
-        if input.KeyCode == Enum.KeyCode.D then inputFlags.right = false end
-        if input.KeyCode == Enum.KeyCode.E then inputFlags.up = false end
-        if input.KeyCode == Enum.KeyCode.Q then inputFlags.down = false end
+    UserInputService.InputEnded:Connect(function(i)
+        if i.KeyCode == Enum.KeyCode.W then inputFlags.forward = false
+        elseif i.KeyCode == Enum.KeyCode.S then inputFlags.back = false
+        elseif i.KeyCode == Enum.KeyCode.A then inputFlags.left = false
+        elseif i.KeyCode == Enum.KeyCode.D then inputFlags.right = false
+        elseif i.KeyCode == Enum.KeyCode.E then inputFlags.up = false
+        elseif i.KeyCode == Enum.KeyCode.Q then inputFlags.down = false end
     end)
 
-    RunService.RenderStepped:Connect(function(dt)
-        if not flying then return end
-        if not inputFlags.forward then forwardHold = 0 end
+    -- // Döngü (Fizik ve Animasyon)
+    RunService.Heartbeat:Connect(function(dt)
+        if not flying or not HRP.Parent then return end
 
-        local dir = Vector3.zero
-        local camCF = Camera.CFrame
+        local moveDir = Vector3.zero
+        if inputFlags.forward then moveDir += Camera.CFrame.LookVector end
+        if inputFlags.back then moveDir -= Camera.CFrame.LookVector end
+        if inputFlags.left then moveDir -= Camera.CFrame.RightVector end
+        if inputFlags.right then moveDir += Camera.CFrame.RightVector end
+        if inputFlags.up then moveDir += Vector3.new(0, 1, 0) end
+        if inputFlags.down then moveDir -= Vector3.new(0, 1, 0) end
 
-        if inputFlags.forward then dir += camCF.LookVector end
-        if inputFlags.back then dir -= camCF.LookVector end
-        if inputFlags.left then dir -= camCF.RightVector end
-        if inputFlags.right then dir += camCF.RightVector end
-        if inputFlags.up then dir += Vector3.yAxis end
-        if inputFlags.down then dir -= Vector3.yAxis end
-
-        if dir.Magnitude > 0 then dir = dir.Unit end
-
-        bodyVelocity.Velocity = dir * flySpeed
-        bodyGyro.CFrame = camCF
-
-        -- Animasyon Mantığı (Aynı Bırakıldı)
-        if inputFlags.up then
-            if not tracks.up.IsPlaying then stopAll(); tracks.up:Play() end
-        elseif inputFlags.down then
-            if not tracks.down.IsPlaying then stopAll(); tracks.down:Play() end
-        elseif inputFlags.forward then
-            forwardHold += dt
-            if forwardHold >= 3 then
-                if not tracks.flyFast.IsPlaying then
-                    stopAll(); flySpeed = baseSpeed * 1.5
-                    tracks.flyFast:Play()
-                end
-            else
-                if not tracks.flyLow1.IsPlaying then
-                    stopAll(); flySpeed = baseSpeed
-                    tracks.flyLow1:Play(); tracks.flyLow2:Play()
-                end
+        if moveDir.Magnitude > 0 then
+            moveDir = moveDir.Unit
+            bv.Velocity = moveDir * baseSpeed
+            if not tracks.move.IsPlaying then
+                stopAnims()
+                tracks.move:Play()
             end
         else
-            if not tracks.idle1.IsPlaying then stopAll(); tracks.idle1:Play() end
+            bv.Velocity = Vector3.zero
+            if not tracks.idle.IsPlaying then
+                stopAnims()
+                tracks.idle:Play()
+            end
         end
+
+        bg.CFrame = Camera.CFrame
+    end)
+
+    -- Karakter ölürse scripti yenile (Otomatik tekrar bağlanma)
+    player.CharacterAdded:Connect(function(newChar)
+        character = newChar
+        humanoid = character:WaitForChild("Humanoid")
+        HRP = character:WaitForChild("HumanoidRootPart")
+        if flying then startFly() end
     end)
 end
 
-gui()
+runFly()
