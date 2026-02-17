@@ -1,63 +1,64 @@
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local ToggleButton = Instance.new("TextButton")
-local UICorner = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
-local Title = Instance.new("TextLabel")
-
--- GUI Ayarları
-ScreenGui.Name = "FlyGui_v1"
-ScreenGui.Parent = game:GetService("CoreGui") -- Resetlendiğinde gitmemesi için CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-MainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
-MainFrame.Size = UDim2.new(0, 150, 0, 80)
-MainFrame.Active = true
-MainFrame.Draggable = true -- Mouse ile taşıyabilirsin
-
-UICorner.Parent = MainFrame
-
-UIStroke.Parent = MainFrame
-UIStroke.Thickness = 2
-UIStroke.Color = Color3.fromRGB(85, 170, 255)
-
-Title.Name = "Title"
-Title.Parent = MainFrame
-Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1, 0, 0.4, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "FLY SYSTEM"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
-
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Parent = MainFrame
-ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ToggleButton.Position = UDim2.new(0.1, 0, 0.45, 0)
-ToggleButton.Size = UDim2.new(0.8, 0, 0.4, 0)
-ToggleButton.Font = Enum.Font.GothamSemibold
-ToggleButton.Text = "DURUM: KAPALI"
-ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
-ToggleButton.TextSize = 12
-
-Instance.new("UICorner", ToggleButton)
-
---------------------------------------------------------------------------
--- SENİN FLY KODUNUN ENTEGRESİ
---------------------------------------------------------------------------
-
-local speeds = 1
-local nowe = false
-local speaker = game:GetService("Players").LocalPlayer
+-- SERVICES
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- FLY SETTINGS
+local flySpeed = 50
+local speeds = 1
+local nowe = false
 
 local bg, bv
 local tpwalking = false
 
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "GhostFlyV6"
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 140, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -70, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(255, 215, 0)
+UIStroke.Thickness = 3
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "SUPERMAN FLY V6"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 12
+
+local SpeedLabel = Instance.new("TextLabel", MainFrame)
+SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
+SpeedLabel.Position = UDim2.new(0, 0, 0.2, 0)
+SpeedLabel.Text = "HIZ: " .. flySpeed
+SpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Font = Enum.Font.GothamBold
+SpeedLabel.TextSize = 18
+
+local ToggleButton = Instance.new("TextButton", MainFrame)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleButton.Position = UDim2.new(0.1, 0, 0.55, 0)
+ToggleButton.Text = "FLY: OFF"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleButton.TextColor3 = Color3.new(1,1,1)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 14
+Instance.new("UICorner", ToggleButton)
+
+-- FUNCTIONS
 local function forceStates(hum)
     for _,state in pairs(Enum.HumanoidStateType:GetEnumItems()) do
         hum:SetStateEnabled(state, true)
@@ -66,10 +67,10 @@ end
 
 local function startFly()
     nowe = true
-    ToggleButton.Text = "DURUM: AÇIK"
-    ToggleButton.TextColor3 = Color3.fromRGB(100, 255, 100)
 
-    local chr = speaker.Character
+    local chr = LocalPlayer.Character
+    if not chr then return end
+
     local hum = chr:FindFirstChildWhichIsA("Humanoid")
     local root = chr:FindFirstChild("HumanoidRootPart")
 
@@ -77,15 +78,17 @@ local function startFly()
 
     forceStates(hum)
 
-    task.spawn(function()
-        local hb = RunService.Heartbeat
-        tpwalking = true
-        while tpwalking and hb:Wait() and chr and hum and hum.Parent do
-            if hum.MoveDirection.Magnitude > 0 then
-                chr:TranslateBy(hum.MoveDirection)
+    for i = 1, speeds do
+        task.spawn(function()
+            local hb = RunService.Heartbeat
+            tpwalking = true
+            while tpwalking and hb:Wait() and chr and hum and hum.Parent do
+                if hum.MoveDirection.Magnitude > 0 then
+                    chr:TranslateBy(hum.MoveDirection)
+                end
             end
-        end
-    end)
+        end)
+    end
 
     chr.Animate.Disabled = true
     for _,v in next, hum:GetPlayingAnimationTracks() do
@@ -105,10 +108,15 @@ local function startFly()
 
     task.spawn(function()
         local speed = 0
-        local maxspeed = 50
+        local maxspeed = flySpeed
+
         while nowe and hum.Health > 0 do
             RunService.RenderStepped:Wait()
-            if hum.Sit then hum.PlatformStand = true end
+
+            if hum.Sit then
+                hum.PlatformStand = true
+            end
+
             if hum.MoveDirection.Magnitude > 0 then
                 speed = math.min(speed + 1, maxspeed)
                 bv.velocity = workspace.CurrentCamera.CFrame.LookVector * speed
@@ -116,6 +124,7 @@ local function startFly()
                 speed = 0
                 bv.velocity = Vector3.new()
             end
+
             bg.cframe = workspace.CurrentCamera.CFrame
         end
     end)
@@ -124,10 +133,8 @@ end
 local function stopFly()
     nowe = false
     tpwalking = false
-    ToggleButton.Text = "DURUM: KAPALI"
-    ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
 
-    local chr = speaker.Character
+    local chr = LocalPlayer.Character
     if not chr then return end
 
     local hum = chr:FindFirstChildWhichIsA("Humanoid")
@@ -140,23 +147,30 @@ local function stopFly()
     if bv then bv:Destroy() end
 end
 
--- Buton Tıklama Olayı
+-- BUTTON TOGGLE
 ToggleButton.MouseButton1Click:Connect(function()
-    if nowe then stopFly() else startFly() end
-end)
-
--- F Tuşu Entegresi
-UIS.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.F then
-        if nowe then stopFly() else startFly() end
+    if nowe then
+        stopFly()
+        ToggleButton.Text = "FLY: OFF"
+    else
+        startFly()
+        ToggleButton.Text = "FLY: ON"
     end
 end)
 
--- Karakter Yenilenince Fix
-speaker.CharacterAdded:Connect(function(char)
+-- F KEY TOGGLE
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.F then
+        ToggleButton:Activate()
+    end
+end)
+
+-- RESPAWN FIX
+LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.7)
     local hum = char:FindFirstChildWhichIsA("Humanoid")
-    if hum then hum.PlatformStand = false end
-    if nowe then stopFly() end -- Respawn olunca fly'ı kapatır (güvenlik için)
+    if hum then
+        hum.PlatformStand = false
+    end
 end)
