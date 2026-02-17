@@ -1,235 +1,183 @@
--- SERVICES
+--// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
 local LocalPlayer = Players.LocalPlayer
 
--- VARIABLES
-local speeds = 1
+--// VARIABLES
 local flying = false
-local tpwalking = false
+local flySpeed = 2
 
-local bg, bv
+local bg
+local bv
+local connection
 
--- GUI
-local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-gui.Name = "RGB_FLY"
-gui.ResetOnSpawn = false
+--// GUI
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "SupermanFlyV7"
+ScreenGui.ResetOnSpawn = false
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,220,0,120)
-frame.Position = UDim2.new(0.1,0,0.4,0)
-frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame)
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0,180,0,200)
+Main.Position = UDim2.new(0.5,-90,0.15,0)
+Main.BackgroundColor3 = Color3.fromRGB(15,15,15)
+Main.Active = true
+Main.Draggable = true
+Instance.new("UICorner", Main)
 
-local stroke = Instance.new("UIStroke", frame)
-stroke.Thickness = 3
+local Stroke = Instance.new("UIStroke", Main)
+Stroke.Thickness = 3
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,30)
-title.BackgroundTransparency = 1
-title.Text = "SUPER FLY RGB"
-title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.new(1,1,1)
-title.TextSize = 16
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1,0,0,35)
+Title.BackgroundTransparency = 1
+Title.Text = "SUPERMAN FLY"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextColor3 = Color3.new(1,1,1)
 
-local flyBtn = Instance.new("TextButton", frame)
-flyBtn.Size = UDim2.new(0.4,0,0,35)
-flyBtn.Position = UDim2.new(0.05,0,0.4,0)
-flyBtn.Text = "FLY"
-flyBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-flyBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", flyBtn)
+local Toggle = Instance.new("TextButton", Main)
+Toggle.Size = UDim2.new(0.8,0,0,40)
+Toggle.Position = UDim2.new(0.1,0,0.3,0)
+Toggle.Text = "FLY: OFF"
+Toggle.Font = Enum.Font.GothamBold
+Toggle.TextSize = 16
+Toggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Toggle)
 
-local up = Instance.new("TextButton", frame)
-up.Size = UDim2.new(0.25,0,0,35)
-up.Position = UDim2.new(0.55,0,0.25,0)
-up.Text = "UP"
+local SpeedLabel = Instance.new("TextLabel", Main)
+SpeedLabel.Size = UDim2.new(1,0,0,30)
+SpeedLabel.Position = UDim2.new(0,0,0.6,0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Font = Enum.Font.GothamBold
+SpeedLabel.TextSize = 15
+SpeedLabel.TextColor3 = Color3.new(1,1,1)
+SpeedLabel.Text = "SPEED: "..flySpeed
 
-local down = Instance.new("TextButton", frame)
-down.Size = UDim2.new(0.25,0,0,35)
-down.Position = UDim2.new(0.55,0,0.6,0)
-down.Text = "DOWN"
+local SpeedUp = Instance.new("TextButton", Main)
+SpeedUp.Size = UDim2.new(0.35,0,0,30)
+SpeedUp.Position = UDim2.new(0.1,0,0.8,0)
+SpeedUp.Text = "+"
+SpeedUp.Font = Enum.Font.GothamBold
+SpeedUp.TextSize = 18
+SpeedUp.BackgroundColor3 = Color3.fromRGB(40,40,40)
+SpeedUp.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", SpeedUp)
 
-local plus = Instance.new("TextButton", frame)
-plus.Size = UDim2.new(0,30,0,30)
-plus.Position = UDim2.new(0.05,0,0.75,0)
-plus.Text = "+"
+local SpeedDown = Instance.new("TextButton", Main)
+SpeedDown.Size = UDim2.new(0.35,0,0,30)
+SpeedDown.Position = UDim2.new(0.55,0,0.8,0)
+SpeedDown.Text = "-"
+SpeedDown.Font = Enum.Font.GothamBold
+SpeedDown.TextSize = 18
+SpeedDown.BackgroundColor3 = Color3.fromRGB(40,40,40)
+SpeedDown.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", SpeedDown)
 
-local minus = Instance.new("TextButton", frame)
-minus.Size = UDim2.new(0,30,0,30)
-minus.Position = UDim2.new(0.22,0,0.75,0)
-minus.Text = "-"
-
-local speedLabel = Instance.new("TextLabel", frame)
-speedLabel.Size = UDim2.new(0,60,0,30)
-speedLabel.Position = UDim2.new(0.4,0,0.75,0)
-speedLabel.Text = speeds
-speedLabel.BackgroundTransparency = 1
-speedLabel.TextColor3 = Color3.new(1,1,1)
-speedLabel.Font = Enum.Font.GothamBold
-
--- RGB EFFECT
+--// RGB EFFECT
 task.spawn(function()
 	local hue = 0
 	while true do
 		hue += 0.01
 		if hue > 1 then hue = 0 end
-		stroke.Color = Color3.fromHSV(hue,1,1)
-		RunService.RenderStepped:Wait()
+		local color = Color3.fromHSV(hue,1,1)
+		Stroke.Color = color
+		Title.TextColor3 = color
+		task.wait(0.03)
 	end
 end)
 
--- FLY ENGINE
-local function startFly()
+--// GET SEAT OR ROOT
+local function getFlyPart(char)
+	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	if hum and hum.SeatPart then
+		return hum.SeatPart
+	end
+	return char:FindFirstChild("HumanoidRootPart")
+end
 
+--// START FLY
+local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
 
 	local hum = char:FindFirstChildWhichIsA("Humanoid")
-	local root = char:FindFirstChild("HumanoidRootPart")
+	if not hum then return end
 
-	if not hum or not root then return end
+	local root = getFlyPart(char)
+	if not root then return end
 
-	-- koltuk kontrol FIX
-	if hum.Sit then return end
-
-	flying = true
-
-	for i = 1, speeds do
-		task.spawn(function()
-			local hb = RunService.Heartbeat
-			tpwalking = true
-			while tpwalking and hb:Wait() and char and hum and hum.Parent do
-				if hum.MoveDirection.Magnitude > 0 then
-					char:TranslateBy(hum.MoveDirection)
-				end
-			end
-		end)
+	if not hum.SeatPart then
+		hum.PlatformStand = true
 	end
 
 	bg = Instance.new("BodyGyro", root)
 	bg.P = 9e4
-	bg.maxTorque = Vector3.new(9e9,9e9,9e9)
+	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
 
 	bv = Instance.new("BodyVelocity", root)
-	bv.maxForce = Vector3.new(9e9,9e9,9e9)
+	bv.MaxForce = Vector3.new(9e9,9e9,9e9)
 
-	hum.PlatformStand = true
-
-	task.spawn(function()
-		local speed = 0
-		local maxspeed = 50
-
-		while flying and hum.Health > 0 do
-			RunService.RenderStepped:Wait()
-
-			-- koltuğa oturunca otomatik kapat
-			if hum.Sit then
-				break
-			end
-
-			if hum.MoveDirection.Magnitude > 0 then
-				speed = math.min(speed + 1, maxspeed)
-				bv.velocity = workspace.CurrentCamera.CFrame.LookVector * speed
-			else
-				speed = 0
-				bv.velocity = Vector3.new()
-			end
-
-			bg.CFrame = workspace.CurrentCamera.CFrame
-		end
-
-		-- güvenli kapatma
-		if flying then
-			flying = false
-			tpwalking = false
-			if bg then bg:Destroy() end
-			if bv then bv:Destroy() end
-			hum.PlatformStand = false
+	connection = RunService.RenderStepped:Connect(function()
+		local cam = workspace.CurrentCamera
+		
+		bg.CFrame = cam.CFrame
+		
+		local move = hum.MoveDirection
+		if move.Magnitude > 0 then
+			bv.Velocity = cam.CFrame.LookVector * (flySpeed * 50)
+		else
+			bv.Velocity = Vector3.zero
 		end
 	end)
 end
 
+--// STOP FLY
 local function stopFly()
-
-	flying = false
-	tpwalking = false
-
 	local char = LocalPlayer.Character
-	if not char then return end
-
-	local hum = char:FindFirstChildWhichIsA("Humanoid")
-
-	if hum then
-		hum.PlatformStand = false
+	if char then
+		local hum = char:FindFirstChildWhichIsA("Humanoid")
+		if hum then
+			hum.PlatformStand = false
+		end
 	end
 
+	if connection then connection:Disconnect() end
 	if bg then bg:Destroy() end
 	if bv then bv:Destroy() end
-
 end
 
--- BUTTONS
-flyBtn.MouseButton1Click:Connect(function()
+--// TOGGLE
+local function toggleFly()
+	flying = not flying
+	
 	if flying then
-		stopFly()
-	else
+		Toggle.Text = "FLY: ON"
 		startFly()
+	else
+		Toggle.Text = "FLY: OFF"
+		stopFly()
 	end
+end
+
+Toggle.MouseButton1Click:Connect(toggleFly)
+
+--// SPEED
+SpeedUp.MouseButton1Click:Connect(function()
+	flySpeed += 1
+	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
 
-plus.MouseButton1Click:Connect(function()
-	speeds += 1
-	speedLabel.Text = speeds
-end)
-
-minus.MouseButton1Click:Connect(function()
-	if speeds > 1 then
-		speeds -= 1
-		speedLabel.Text = speeds
+SpeedDown.MouseButton1Click:Connect(function()
+	if flySpeed > 1 then
+		flySpeed -= 1
 	end
+	SpeedLabel.Text = "SPEED: "..flySpeed
 end)
 
--- UP DOWN
-local upLoop
-up.MouseButton1Down:Connect(function()
-	upLoop = true
-	while upLoop do
-		task.wait()
-		local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if root then
-			root.CFrame *= CFrame.new(0,1,0)
-		end
-	end
-end)
-
-up.MouseLeave:Connect(function()
-	upLoop = false
-end)
-
-local downLoop
-down.MouseButton1Down:Connect(function()
-	downLoop = true
-	while downLoop do
-		task.wait()
-		local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if root then
-			root.CFrame *= CFrame.new(0,-1,0)
-		end
-	end
-end)
-
-down.MouseLeave:Connect(function()
-	downLoop = false
-end)
-
--- RESPAWN FIX
-LocalPlayer.CharacterAdded:Connect(function(char)
-	task.wait(0.7)
-	local hum = char:FindFirstChildWhichIsA("Humanoid")
-	if hum then
-		hum.PlatformStand = false
-	end
+--// RESPAWN FIX
+LocalPlayer.CharacterAdded:Connect(function()
+	stopFly()
 end)
