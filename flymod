@@ -1,12 +1,15 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
 --// VARIABLES
 local flying = false
-local flySpeed = 2
+local flySpeed = 2           -- BodyVelocity hız çarpanı
+local speeds = 1              -- TPWalk thread sayısı
+local tpwalking = false       -- TPWalk durumu
 
 local bg
 local bv
@@ -114,7 +117,8 @@ D → sağ
 
 Kamera nereye bakarsa oraya uçarsın
 
-Speed + - ile hız değişir
+Speed + - ile uçuş hızı değişir
++ / - tuşları ile TPWalk hızı (thread sayısı) değişir
 
 Koltukta otursan bile uçarsın
 (araba dahil)
@@ -148,7 +152,53 @@ local function getFlyPart(char)
 	return char:FindFirstChild("HumanoidRootPart")
 end
 
--- START FLY
+-- Humanoid state'lerini kontrol et (ilk scriptten)
+local function setHumanoidStates(hum, state)
+	for _, v in pairs(Enum.HumanoidStateType:GetEnumItems()) do
+		hum:SetStateEnabled(v, state)
+	end
+end
+
+-- TPWalk thread'leri (ilk scriptteki gibi)
+local function startTPWalk()
+	for i = 1, speeds do
+		task.spawn(function()
+			local hb = RunService.Heartbeat
+			while tpwalking and hb:Wait() do
+				local chr = LocalPlayer.Character
+				local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
+				if chr and hum and hum.Parent and hum.MoveDirection.Magnitude > 0 then
+					chr:TranslateBy(hum.MoveDirection)
+				end
+			end
+		end)
+	end
+end
+
+-- Animasyonları durdur (ilk scriptteki gibi)
+local function stopAnimations(char)
+	local animate = char:FindFirstChild("Animate")
+	if animate then
+		animate.Disabled = true
+	end
+	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	if hum then
+		for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+			track:AdjustSpeed(0)
+		end
+	end
+end
+
+-- Animasyonları geri aç
+local function resumeAnimations(char)
+	local animate = char:FindFirstChild("Animate")
+	if animate then
+		animate.Disabled = false
+	end
+	-- Animasyon track'leri otomatik olarak normale döner
+end
+
+-- START FLY (güncellenmiş)
 local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
@@ -159,10 +209,22 @@ local function startFly()
 	local root = getFlyPart(char)
 	if not root then return end
 
+	-- TPWalk'i başlat
+	tpwalking = true
+	startTPWalk()
+
+	-- Animasyonları durdur
+	stopAnimations(char)
+
+	-- Humanoid state'lerini kapat ve Swimming'e al
+	setHumanoidStates(hum, false)
+	hum:ChangeState(Enum.HumanoidStateType.Swimming)
+
 	if not hum.SeatPart then
 		hum.PlatformStand = true
 	end
 
+	-- Body mover'lar
 	bg = Instance.new("BodyGyro", root)
 	bg.P = 9e4
 	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
@@ -177,23 +239,28 @@ local function startFly()
 		local move = hum.MoveDirection
 
 		if move.Magnitude > 0 then
-			bv.Velocity =
-				(cam.CFrame.LookVector * move.Z * -1 +
-				 cam.CFrame.RightVector * move.X) * (flySpeed * 50)
+			-- BodyVelocity ile hareket (flySpeed çarpanı)
+			bv.Velocity = (cam.CFrame.LookVector * move.Z * -1 + cam.CFrame.RightVector * move.X) * (flySpeed * 50)
 		else
 			bv.Velocity = Vector3.zero
 		end
 	end)
 end
 
--- STOP FLY
+-- STOP FLY (güncellenmiş)
 local function stopFly()
+	tpwalking = false
+
 	local char = LocalPlayer.Character
 	if char then
 		local hum = char:FindFirstChildWhichIsA("Humanoid")
 		if hum then
+			-- Humanoid state'lerini geri aç
+			setHumanoidStates(hum, true)
 			hum.PlatformStand = false
 		end
+		-- Animasyonları geri aç
+		resumeAnimations(char)
 	end
 
 	if connection then connection:Disconnect() end
@@ -216,7 +283,7 @@ end
 
 Toggle.MouseButton1Click:Connect(toggleFly)
 
--- SPEED
+-- SPEED butonları (flySpeed)
 SpeedUp.MouseButton1Click:Connect(function()
 	flySpeed += 1
 	SpeedLabel.Text = "SPEED: "..flySpeed
@@ -231,4 +298,31 @@ end)
 
 -- RESPAWN FIX
 LocalPlayer.CharacterAdded:Connect(function()
-	stopFly()
+	if flying then
+		stopFly()
+		-- yeniden başlatmak için kısa bir süre bekle
+		task.wait(0.5)
+		startFly()
+	end
+end)
+
+-- TUŞ KONTROLLERİ (F tuşu ve +/‑ ile speeds ayarı)
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+
+	if input.KeyCode == Enum.KeyCode.F then
+		toggleFly()
+	end
+
+	if input.KeyCode == Enum.KeyCode.Equals then
+		speeds += 1
+		print("TPWalk thread sayısı:", speeds)
+	end
+
+	if input.KeyCode == Enum.KeyCode.Minus then
+		if speeds > 1 then
+			speeds -= 1
+		end
+		print("TPWalk thread sayısı:", speeds)
+	end
+end)
