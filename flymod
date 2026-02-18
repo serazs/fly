@@ -7,13 +7,14 @@ local LocalPlayer = Players.LocalPlayer
 
 --// VARIABLES
 local flying = false
-local flySpeed = 2           -- BodyVelocity hız çarpanı
-local speeds = 1              -- TPWalk thread sayısı
-local tpwalking = false       -- TPWalk durumu
-
-local bg
-local bv
-local connection
+local speeds = 1
+local maxspeed = 50  -- uçuş hız limiti (ilk scriptteki gibi)
+local nowe = false   -- uçuş durumu
+local tpwalking = false
+local bg, bv, connection
+local ctrl = {f=0,b=0,l=0,r=0}
+local lastctrl = {f=0,b=0,l=0,r=0}
+local speed = 0
 
 --// GUI
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -56,7 +57,7 @@ SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Font = Enum.Font.GothamBold
 SpeedLabel.TextSize = 15
 SpeedLabel.TextColor3 = Color3.new(1,1,1)
-SpeedLabel.Text = "SPEED: "..flySpeed
+SpeedLabel.Text = "TPWalk THREAD: "..speeds
 
 local SpeedUp = Instance.new("TextButton", Main)
 SpeedUp.Size = UDim2.new(0.35,0,0,30)
@@ -116,14 +117,12 @@ A → sol
 D → sağ
 
 Kamera nereye bakarsa oraya uçarsın
+Oturduğun araçla beraber uçarsın
 
-Speed + - ile uçuş hızı değişir
-+ / - tuşları ile TPWalk hızı (thread sayısı) değişir
++ / - butonları TPWalk thread sayısını ayarlar
+(daha fazla thread = daha hızlı yürüme)
 
-Koltukta otursan bile uçarsın
-(araba dahil)
-
-Paneli sürükleyebilirsin]]
+F tuşu ile de açıp kapatabilirsin]]
 
 -- RGB EFFECT
 task.spawn(function()
@@ -143,7 +142,7 @@ HelpBtn.MouseButton1Click:Connect(function()
 	HelpFrame.Visible = not HelpFrame.Visible
 end)
 
--- GET SEAT OR ROOT
+-- GET SEAT OR ROOT (oturulan yeri al)
 local function getFlyPart(char)
 	local hum = char:FindFirstChildWhichIsA("Humanoid")
 	if hum and hum.SeatPart then
@@ -152,14 +151,14 @@ local function getFlyPart(char)
 	return char:FindFirstChild("HumanoidRootPart")
 end
 
--- Humanoid state'lerini kontrol et (ilk scriptten)
+-- Humanoid state'lerini kontrol et
 local function setHumanoidStates(hum, state)
 	for _, v in pairs(Enum.HumanoidStateType:GetEnumItems()) do
 		hum:SetStateEnabled(v, state)
 	end
 end
 
--- TPWalk thread'leri (ilk scriptteki gibi)
+-- TPWalk thread'leri
 local function startTPWalk()
 	for i = 1, speeds do
 		task.spawn(function()
@@ -175,7 +174,7 @@ local function startTPWalk()
 	end
 end
 
--- Animasyonları durdur (ilk scriptteki gibi)
+-- Animasyonları durdur
 local function stopAnimations(char)
 	local animate = char:FindFirstChild("Animate")
 	if animate then
@@ -195,10 +194,9 @@ local function resumeAnimations(char)
 	if animate then
 		animate.Disabled = false
 	end
-	-- Animasyon track'leri otomatik olarak normale döner
 end
 
--- START FLY (güncellenmiş)
+-- START FLY (ilk scriptteki mantık)
 local function startFly()
 	local char = LocalPlayer.Character
 	if not char then return end
@@ -209,7 +207,8 @@ local function startFly()
 	local root = getFlyPart(char)
 	if not root then return end
 
-	-- TPWalk'i başlat
+	-- nowe = true (uçuş aktif)
+	nowe = true
 	tpwalking = true
 	startTPWalk()
 
@@ -220,6 +219,7 @@ local function startFly()
 	setHumanoidStates(hum, false)
 	hum:ChangeState(Enum.HumanoidStateType.Swimming)
 
+	-- PlatformStand (eğer oturmuyorsa)
 	if not hum.SeatPart then
 		hum.PlatformStand = true
 	end
@@ -228,38 +228,65 @@ local function startFly()
 	bg = Instance.new("BodyGyro", root)
 	bg.P = 9e4
 	bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+	bg.CFrame = root.CFrame
 
 	bv = Instance.new("BodyVelocity", root)
+	bv.Velocity = Vector3.new(0,0.1,0)
 	bv.MaxForce = Vector3.new(9e9,9e9,9e9)
 
+	-- Kontrol değişkenlerini sıfırla
+	ctrl = {f=0,b=0,l=0,r=0}
+	lastctrl = {f=0,b=0,l=0,r=0}
+	speed = 0
+
+	-- Uçuş döngüsü
 	connection = RunService.RenderStepped:Connect(function()
+		if not nowe or hum.Health <= 0 then
+			return
+		end
+
+		-- Hız hesaplama
+		if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
+			speed = speed + 0.5 + (speed / maxspeed)
+			if speed > maxspeed then speed = maxspeed end
+		elseif speed ~= 0 then
+			speed = speed - 1
+			if speed < 0 then speed = 0 end
+		end
+
 		local cam = workspace.CurrentCamera
-		bg.CFrame = cam.CFrame
 
-		local move = hum.MoveDirection
-
-		if move.Magnitude > 0 then
-			-- BodyVelocity ile hareket (flySpeed çarpanı)
-			bv.Velocity = (cam.CFrame.LookVector * move.Z * -1 + cam.CFrame.RightVector * move.X) * (flySpeed * 50)
+		if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
+			bv.Velocity =
+				((cam.CFrame.LookVector * (ctrl.f + ctrl.b)) +
+				((cam.CFrame * CFrame.new(ctrl.l + ctrl.r, (ctrl.f + ctrl.b) * 0.2, 0).Position) - cam.CFrame.Position))
+				* speed
+			lastctrl = {f=ctrl.f, b=ctrl.b, l=ctrl.l, r=ctrl.r}
+		elseif speed ~= 0 then
+			bv.Velocity =
+				((cam.CFrame.LookVector * (lastctrl.f + lastctrl.b)) +
+				((cam.CFrame * CFrame.new(lastctrl.l + lastctrl.r, (lastctrl.f + lastctrl.b) * 0.2, 0).Position) - cam.CFrame.Position))
+				* speed
 		else
 			bv.Velocity = Vector3.zero
 		end
+
+		bg.CFrame = cam.CFrame * CFrame.Angles(-math.rad((ctrl.f + ctrl.b) * 50 * speed / maxspeed), 0, 0)
 	end)
 end
 
--- STOP FLY (güncellenmiş)
+-- STOP FLY
 local function stopFly()
+	nowe = false
 	tpwalking = false
 
 	local char = LocalPlayer.Character
 	if char then
 		local hum = char:FindFirstChildWhichIsA("Humanoid")
 		if hum then
-			-- Humanoid state'lerini geri aç
 			setHumanoidStates(hum, true)
 			hum.PlatformStand = false
 		end
-		-- Animasyonları geri aç
 		resumeAnimations(char)
 	end
 
@@ -283,30 +310,29 @@ end
 
 Toggle.MouseButton1Click:Connect(toggleFly)
 
--- SPEED butonları (flySpeed)
+-- SPEED butonları (speeds değişir)
 SpeedUp.MouseButton1Click:Connect(function()
-	flySpeed += 1
-	SpeedLabel.Text = "SPEED: "..flySpeed
+	speeds += 1
+	SpeedLabel.Text = "TPWalk THREAD: "..speeds
 end)
 
 SpeedDown.MouseButton1Click:Connect(function()
-	if flySpeed > 1 then
-		flySpeed -= 1
+	if speeds > 1 then
+		speeds -= 1
 	end
-	SpeedLabel.Text = "SPEED: "..flySpeed
+	SpeedLabel.Text = "TPWalk THREAD: "..speeds
 end)
 
 -- RESPAWN FIX
 LocalPlayer.CharacterAdded:Connect(function()
 	if flying then
 		stopFly()
-		-- yeniden başlatmak için kısa bir süre bekle
 		task.wait(0.5)
 		startFly()
 	end
 end)
 
--- TUŞ KONTROLLERİ (F tuşu ve +/‑ ile speeds ayarı)
+-- TUŞ KONTROLLERİ (F tuşu ve WASD güncellemesi)
 UIS.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 
@@ -314,15 +340,47 @@ UIS.InputBegan:Connect(function(input, gpe)
 		toggleFly()
 	end
 
+	-- WASD kontrol tablosunu güncelle
+	if input.KeyCode == Enum.KeyCode.W then
+		ctrl.f = 1
+	elseif input.KeyCode == Enum.KeyCode.S then
+		ctrl.b = 1
+	elseif input.KeyCode == Enum.KeyCode.A then
+		ctrl.l = 1
+	elseif input.KeyCode == Enum.KeyCode.D then
+		ctrl.r = 1
+	end
+end)
+
+UIS.InputEnded:Connect(function(input, gpe)
+	if gpe then return end
+
+	if input.KeyCode == Enum.KeyCode.W then
+		ctrl.f = 0
+	elseif input.KeyCode == Enum.KeyCode.S then
+		ctrl.b = 0
+	elseif input.KeyCode == Enum.KeyCode.A then
+		ctrl.l = 0
+	elseif input.KeyCode == Enum.KeyCode.D then
+		ctrl.r = 0
+	end
+end)
+
+-- +/‑ tuşları ile speeds ayarı (ilk scriptteki gibi)
+UIS.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+
 	if input.KeyCode == Enum.KeyCode.Equals then
 		speeds += 1
-		print("TPWalk thread sayısı:", speeds)
+		SpeedLabel.Text = "TPWalk THREAD: "..speeds
+		print("Speeds:", speeds)
 	end
 
 	if input.KeyCode == Enum.KeyCode.Minus then
 		if speeds > 1 then
 			speeds -= 1
 		end
-		print("TPWalk thread sayısı:", speeds)
+		SpeedLabel.Text = "TPWalk THREAD: "..speeds
+		print("Speeds:", speeds)
 	end
 end)
